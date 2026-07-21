@@ -3,6 +3,7 @@ services:
     name: community-feed-server
     runtime: node
     plan: free
+    rootDir: server
     buildCommand: npm install
     startCommand: node src/app.js
     envVars:
