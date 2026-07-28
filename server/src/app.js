@@ -46,6 +46,16 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
+app.use((req, res, next) => {
+  if (req.path === '/api/health') return next();
+  if (!dbReady) {
+    return dbPromise.then(() => next()).catch(() =>
+      res.status(503).json({ error: 'Database not ready' })
+    );
+  }
+  next();
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/feed', feedRoutes);
 app.use('/api/posts', postRoutes);
@@ -114,12 +124,13 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
 let mongod = null;
+let dbReady = false;
 
 async function connectDB() {
   if (MONGO_URI) {
     await mongoose.connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 5000,
-      connectTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 15000,
     });
     console.log('Connected to MongoDB');
   } else {
@@ -132,19 +143,19 @@ async function connectDB() {
     });
     console.log('Connected to MongoDB (in-memory)');
   }
+  dbReady = true;
 }
 
+const dbPromise = connectDB().catch((err) => {
+  console.error('MongoDB connection error:', err);
+});
+
 if (require.main === module) {
-  connectDB()
-    .then(() => {
-      server.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-      });
-    })
-    .catch((err) => {
-      console.error('MongoDB connection error:', err);
-      process.exit(1);
+  dbPromise.then(() => {
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
     });
+  });
 }
 
 module.exports = app;
