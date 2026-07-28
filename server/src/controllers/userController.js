@@ -6,26 +6,13 @@ const Notification = require('../models/Notification');
 const ReputationLog = require('../models/ReputationLog');
 const { addReputation } = require('../utils/reputationHelper');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-
-const uploadDir = path.join(__dirname, '../../uploads/avatars');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, uploadDir),
-    filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname);
-      cb(null, `avatar_${req.user._id}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
-    if (allowed.test(path.extname(file.originalname))) {
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Only image files (jpg, jpeg, png, gif, webp) are allowed'));
@@ -180,7 +167,7 @@ async function getUserPosts(req, res, next) {
     const [posts, total] = await Promise.all([
       Post.find({ author: user._id, isDeleted: false })
         .populate('author', 'username displayName avatar')
-        .sort({ createdAt: -1 })
+        .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -223,13 +210,15 @@ async function uploadAvatar(req, res, next) {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const base64 = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
+    const dataUri = `data:${mimeType};base64,${base64}`;
     const user = await User.findByIdAndUpdate(
       req.user._id,
-      { avatar: avatarUrl },
+      { avatar: dataUri },
       { new: true }
     );
-    res.json({ user, avatar: avatarUrl });
+    res.json({ user, avatar: dataUri });
   } catch (error) {
     next(error);
   }

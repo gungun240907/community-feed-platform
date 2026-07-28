@@ -98,6 +98,7 @@ postSchema.index({ hashtags: 1 });
 postSchema.index({ author: 1, createdAt: -1 });
 postSchema.index({ createdAt: -1 });
 postSchema.index({ isDeleted: 1, createdAt: -1 });
+postSchema.index({ updatedAt: -1 });
 postSchema.index({ isReported: 1, reportCount: -1 });
 
 module.exports = mongoose.model('Post', postSchema);

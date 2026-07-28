@@ -20,7 +20,7 @@ async function getPersonalizedFeed(req, res, next) {
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate('author', 'username displayName avatar')
-        .sort({ createdAt: -1 })
+        .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -50,7 +50,7 @@ async function getTrendingFeed(req, res, next) {
 
     let posts = await Post.find({ isDeleted: false })
       .populate('author', 'username displayName avatar featuredProfile')
-      .sort({ createdAt: -1 })
+      .sort({ updatedAt: -1 })
       .limit(200)
       .lean();
 
