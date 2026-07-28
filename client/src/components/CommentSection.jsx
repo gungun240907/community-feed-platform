@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, Reply, Trash2, ChevronDown, MessageSquare } from 'lucide-react';
 import { postAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useSocketContext } from '../context/SocketContext';
+import { useTranslation } from '../context/I18nContext';
 
 function CommentItem({ comment, onDelete, postId, depth = 0 }) {
   const { user } = useAuth();
@@ -10,13 +12,14 @@ function CommentItem({ comment, onDelete, postId, depth = 0 }) {
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
   const [replies, setReplies] = useState(comment.replies || []);
   const [showReplies, setShowReplies] = useState(true);
+  const { t } = useTranslation();
 
   const isOwnComment = user && comment.author && (user._id === comment.author._id);
 
   const timeAgo = (date) => {
     const diff = Date.now() - new Date(date).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
+    if (mins < 1) return t('post.justNow');
     if (mins < 60) return `${mins}m`;
     const hours = Math.floor(mins / 60);
     if (hours < 24) return `${hours}h`;
@@ -64,20 +67,20 @@ function CommentItem({ comment, onDelete, postId, depth = 0 }) {
             <div className="flex items-center gap-3 mt-2">
               {depth < 2 && (
                 <button
-                  className={`text-xs flex items-center gap-1 transition-colors ${
+                  className={`text-xs touch-btn gap-1 transition-colors ${
                     showReplyInput ? 'text-primary-600 font-medium' : 'text-surface-400 hover:text-primary-600'
                   }`}
                   onClick={() => setShowReplyInput(!showReplyInput)}
                 >
-                  <Reply size={13} /> Reply
+                  <Reply size={13} /> {t('comment.reply')}
                 </button>
               )}
               {isOwnComment && (
                 <button
-                  className="text-xs text-surface-400 hover:text-red-500 flex items-center gap-1 transition-colors"
+                  className="text-xs touch-btn gap-1 text-surface-400 hover:text-red-500 transition-colors"
                   onClick={() => onDelete(comment._id, postId)}
                 >
-                  <Trash2 size={13} /> Delete
+                  <Trash2 size={13} /> {t('comment.delete')}
                 </button>
               )}
             </div>
@@ -88,7 +91,7 @@ function CommentItem({ comment, onDelete, postId, depth = 0 }) {
                   type="text"
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Write a reply..."
+                  placeholder={t('comment.placeholder')}
                   className="input-field flex-1 text-sm"
                   onKeyDown={(e) => e.key === 'Enter' && handleReply()}
                   autoFocus
@@ -98,7 +101,7 @@ function CommentItem({ comment, onDelete, postId, depth = 0 }) {
                   onClick={handleReply}
                   disabled={!replyText.trim() || isSubmittingReply}
                 >
-                  {isSubmittingReply ? <Loader2 size={12} className="animate-spin" /> : 'Reply'}
+                  {isSubmittingReply ? <Loader2 size={12} className="animate-spin" /> : t('comment.reply')}
                 </button>
               </div>
             )}
@@ -132,12 +135,19 @@ function CommentItem({ comment, onDelete, postId, depth = 0 }) {
   );
 }
 
-export default function CommentSection({ postId }) {
+export default function CommentSection({ postId, onCommentCountChange }) {
   const { user } = useAuth();
+  const { joinPost, leavePost } = useSocketContext();
   const [comments, setComments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { t } = useTranslation();
+
+  useEffect(() => {
+    joinPost(postId);
+    return () => leavePost(postId);
+  }, [postId, joinPost, leavePost]);
 
   const fetchComments = useCallback(async () => {
     setIsLoading(true);
@@ -162,6 +172,7 @@ export default function CommentSection({ postId }) {
       const response = await postAPI.createComment(postId, { text: newComment });
       setComments((prev) => [response.data.comment, ...prev]);
       setNewComment('');
+      if (onCommentCountChange) onCommentCountChange(1);
     } catch (err) {
       console.error('Failed to post comment:', err);
     } finally {
@@ -173,6 +184,7 @@ export default function CommentSection({ postId }) {
     try {
       await postAPI.deleteComment(postId, commentId);
       setComments((prev) => prev.filter((c) => c._id !== commentId));
+      if (onCommentCountChange) onCommentCountChange(-1);
     } catch (err) {
       console.error('Failed to delete comment:', err);
     }
@@ -197,7 +209,7 @@ export default function CommentSection({ postId }) {
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Write a comment..."
+              placeholder={t('comment.placeholder')}
               className="input-field flex-1 text-sm"
             />
             <button
@@ -205,7 +217,7 @@ export default function CommentSection({ postId }) {
               onClick={handleSubmitComment}
               disabled={!newComment.trim() || isSubmitting}
             >
-              {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : 'Comment'}
+              {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : t('comment.post')}
             </button>
           </div>
         </div>
@@ -218,7 +230,7 @@ export default function CommentSection({ postId }) {
       ) : comments.length === 0 ? (
         <div className="text-center py-8 space-y-2">
           <MessageSquare size={24} className="mx-auto text-surface-300" />
-          <p className="text-sm text-surface-400">No comments yet. Start the conversation!</p>
+          <p className="text-sm text-surface-400">{t('comment.noComments')}</p>
         </div>
       ) : (
         <div className="divide-y divide-surface-50">

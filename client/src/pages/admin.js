@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import AdminModerationTable from '../components/AdminModerationTable';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/I18nContext';
 
 export default function AdminPage() {
   const { user, isAuthenticated, isLoading } = useAuth();

@@ -6,21 +6,27 @@ const {
   updatePost,
   deletePost,
   toggleLike,
+  toggleDownvote,
   toggleBookmark,
+  acceptAnswer,
+  sharePost,
   getComments,
   createComment,
   deleteComment,
 } = require('../controllers/postController');
 const { authenticate, optionalAuth } = require('../middleware/auth');
-const { createReport } = require('../controllers/adminController');
+const { checkPostLimit, checkBookmarkLimit } = require('../middleware/subscription');
 
-router.post('/', authenticate, createPost);
+router.post('/', authenticate, checkPostLimit, createPost);
 router.get('/:id', optionalAuth, getPost);
 router.put('/:id', authenticate, updatePost);
 router.delete('/:id', authenticate, deletePost);
 
 router.post('/:id/like', authenticate, toggleLike);
-router.post('/:id/bookmark', authenticate, toggleBookmark);
+router.post('/:id/downvote', authenticate, toggleDownvote);
+router.post('/:id/bookmark', authenticate, checkBookmarkLimit, toggleBookmark);
+router.post('/:id/accept-answer', authenticate, acceptAnswer);
+router.post('/:id/share', authenticate, sharePost);
 
 router.get('/:id/comments', optionalAuth, getComments);
 router.post('/:id/comments', authenticate, createComment);

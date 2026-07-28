@@ -1,12 +1,16 @@
-import React, { useState, useRef } from 'react';
-import { Image, X, Send, Loader2, AlertCircle } from 'lucide-react';
+import React, { useState, useRef, useMemo } from 'react';
+import { Image, X, Send, Loader2, AlertCircle, Crown } from 'lucide-react';
 import { postAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/I18nContext';
 
 const MAX_CHARS = 10000;
 
+const PLAN_POST_LIMITS = { free: 1, bronze: 5, silver: 15, gold: -1 };
+
 export default function CreatePost({ onPostCreated }) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [content, setContent] = useState('');
   const [mediaUrls, setMediaUrls] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -14,9 +18,39 @@ export default function CreatePost({ onPostCreated }) {
   const [showMediaInput, setShowMediaInput] = useState(false);
   const [error, setError] = useState('');
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const charsRemaining = MAX_CHARS - content.length;
   const isValid = content.trim().length > 0 && charsRemaining >= 0;
+
+  const postLimit = useMemo(() => {
+    const plan = user?.subscriptionPlan || 'free';
+    const limit = PLAN_POST_LIMITS[plan] || 1;
+    if (limit === -1) return { limit: '∞', used: 0, text: t('post.create.unlimited') };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const resetDate = user?.postCountResetDate ? new Date(user.postCountResetDate) : null;
+    const used = (!resetDate || resetDate < today) ? 0 : (user?.postCount || 0);
+    const remaining = Math.max(0, limit - used);
+    return { limit, used, remaining, text: t('post.create.limit', { remaining, limit }) };
+  }, [user]);
+
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setIsSubmitting(true);
+    Promise.all(files.map((file) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+    })).then((urls) => {
+      setMediaUrls((prev) => [...prev, ...urls].slice(0, 4));
+      setIsSubmitting(false);
+    }).catch(() => setIsSubmitting(false));
+    e.target.value = '';
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -86,7 +120,7 @@ export default function CreatePost({ onPostCreated }) {
             value={content}
             onChange={handleTextareaInput}
             onKeyDown={handleKeyDown}
-            placeholder="Share a technical update, project showcase, or learning achievement..."
+            placeholder={t('post.create.placeholder')}
             className="w-full resize-none border-0 bg-transparent placeholder-surface-400 text-surface-900 focus:outline-none focus:ring-0 text-sm min-h-[80px] leading-relaxed"
             rows={3}
             maxLength={MAX_CHARS}
@@ -104,16 +138,24 @@ export default function CreatePost({ onPostCreated }) {
                   />
                   <button
                     type="button"
-                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                    className="absolute -top-2.5 -right-2.5 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
                     onClick={() => removeMedia(i)}
                   >
-                    <X size={11} />
+                    <X size={12} />
                   </button>
                 </div>
               ))}
             </div>
           )}
 
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+          />
           {showMediaInput && (
             <div className="flex gap-2 mt-3 animate-slide-down">
               <input
@@ -143,33 +185,35 @@ export default function CreatePost({ onPostCreated }) {
           <button
             type="button"
             className="btn-ghost text-sm text-surface-400 hover:text-primary-600 gap-1.5"
-            onClick={() => setShowMediaInput(!showMediaInput)}
+            onClick={() => fileInputRef.current?.click()}
           >
             <Image size={18} />
-            <span className="hidden sm:inline">Media</span>
+            <span className="hidden sm:inline">{t('post.create.media')}</span>
           </button>
+          <span className="text-xs text-surface-400 hidden sm:inline">{postLimit.text}</span>
+        </div>
+        <div className="flex items-center gap-3">
           <span className={`text-xs font-medium ${
             charsRemaining < 100 ? 'text-red-500' : charsRemaining < 500 ? 'text-amber-500' : 'text-surface-400'
           }`}>
             {charsRemaining}
           </span>
+          <button
+            type="submit"
+            className="btn-primary text-sm"
+            disabled={!isValid || isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 size={16} className="animate-spin mr-1.5" /> {t('post.create.posting')}
+              </>
+            ) : (
+              <>
+                <Send size={16} className="mr-1.5" /> {t('post.create.post')}
+              </>
+            )}
+          </button>
         </div>
-
-        <button
-          type="submit"
-          className="btn-primary text-sm"
-          disabled={!isValid || isSubmitting}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 size={16} className="animate-spin mr-1.5" /> Posting...
-            </>
-          ) : (
-            <>
-              <Send size={16} className="mr-1.5" /> Post
-            </>
-          )}
-        </button>
       </div>
     </form>
   );

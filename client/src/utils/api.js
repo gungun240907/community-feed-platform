@@ -52,6 +52,7 @@ export const postAPI = {
   delete: (id) => api.delete(`/posts/${id}`),
   toggleLike: (id) => api.post(`/posts/${id}/like`),
   toggleBookmark: (id) => api.post(`/posts/${id}/bookmark`),
+  share: (id) => api.post(`/posts/${id}/share`),
   getComments: (id, page = 1, limit = 10) =>
     api.get(`/posts/${id}/comments`, { params: { page, limit } }),
   createComment: (id, data) => api.post(`/posts/${id}/comments`, data),
@@ -63,7 +64,9 @@ export const postAPI = {
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
+  verifyLoginOtp: (data) => api.post('/auth/verify-login-otp', data),
   getMe: () => api.get('/auth/me'),
+  forgotPassword: (data) => api.post('/auth/forgot-password', data),
 };
 
 export const userAPI = {
@@ -84,6 +87,20 @@ export const notificationAPI = {
   markAllAsRead: () => api.put('/notifications/read-all'),
 };
 
+export const searchAPI = {
+  search: (query) => api.get('/search', { params: { q: query } }),
+};
+
+export const subscriptionAPI = {
+  createSubscription: (plan) => api.post('/subscriptions/create-subscription', { plan }),
+  verifyPayment: (data) => api.post('/subscriptions/verify-payment', data),
+  getStatus: () => api.get('/subscriptions/status'),
+  getPayments: (page = 1, limit = 20) => api.get('/subscriptions/payments', { params: { page, limit } }),
+  cancel: () => api.post('/subscriptions/cancel'),
+  reactivate: () => api.post('/subscriptions/reactivate'),
+  devActivate: (plan) => api.post('/subscriptions/dev-activate', { plan }),
+};
+
 export const adminAPI = {
   getDashboardStats: () => api.get('/admin/stats'),
   getReportedPosts: () => api.get('/admin/reports'),
@@ -91,6 +108,37 @@ export const adminAPI = {
   deletePost: (postId) => api.delete(`/admin/posts/${postId}`),
   suspendUser: (userId) => api.put(`/admin/users/${userId}/suspend`),
   unsuspendUser: (userId) => api.put(`/admin/users/${userId}/unsuspend`),
+};
+
+export const supportAPI = {
+  submit: (data) => api.post('/support', data),
+};
+
+export const languageAPI = {
+  request: (language) => api.post('/language/request', { language }),
+  verify: (language, otp) => api.post('/language/verify', { language, otp }),
+};
+
+export const reputationAPI = {
+  getHistory: (userId, page = 1, limit = 20) => api.get(`/reputation/history/${userId}`, { params: { page, limit } }),
+  getPrivileges: (userId) => api.get(`/reputation/privileges/${userId}`),
+  getTransfers: (userId, page = 1, limit = 20) => api.get(`/reputation/transfers/${userId}`, { params: { page, limit } }),
+  checkCanTransfer: () => api.get('/reputation/can-transfer'),
+  transfer: (data) => api.post('/reputation/transfer', data),
+};
+
+export const sessionAPI = {
+  getActiveSessions: () => api.get('/sessions'),
+  revokeSession: (sessionId) => api.post(`/sessions/revoke/${sessionId}`),
+  revokeAllSessions: () => api.post('/sessions/revoke-all'),
+  trustDevice: () => api.post('/sessions/trust'),
+  logout: () => api.post('/sessions/logout'),
+};
+
+export const loginLogAPI = {
+  getHistory: (page = 1, limit = 20) => api.get('/login-logs', { params: { page, limit } }),
+  getAllLogs: (page = 1, limit = 20, filters = {}) =>
+    api.get('/admin/login-logs', { params: { page, limit, ...filters } }),
 };
 
 export default api;

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Shield, AlertTriangle, CheckCircle, XCircle, Trash2, Ban, Eye, RefreshCw, Loader2, Users, FileText, Flag, UserX } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, XCircle, Trash2, Ban, UserCheck, Eye, RefreshCw, Loader2, Users, FileText, Flag, UserX } from 'lucide-react';
 import { adminAPI } from '../utils/api';
+import { useTranslation } from '../context/I18nContext';
 
 function ReportRow({ reportGroup, onAction }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
 
@@ -23,7 +25,7 @@ function ReportRow({ reportGroup, onAction }) {
   };
 
   const handleDeletePost = async () => {
-    if (!window.confirm('Delete this post permanently? This will also action all associated reports.')) return;
+    if (!window.confirm(t('admin.deleteConfirm'))) return;
     setActionLoading('delete');
     try {
       await adminAPI.deletePost(post._id);
@@ -36,13 +38,26 @@ function ReportRow({ reportGroup, onAction }) {
   };
 
   const handleSuspendUser = async () => {
-    if (!window.confirm(`Suspend @${author.username}? Their posts will remain but they cannot interact.`)) return;
+    if (!window.confirm(t('admin.suspendConfirm', { username: author.username }))) return;
     setActionLoading('suspend');
     try {
       await adminAPI.suspendUser(author._id);
       onAction();
     } catch (err) {
       console.error('Failed to suspend user:', err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleUnsuspendUser = async () => {
+    if (!window.confirm(t('admin.unsuspendConfirm', { username: author.username }))) return;
+    setActionLoading('unsuspend');
+    try {
+      await adminAPI.unsuspendUser(author._id);
+      onAction();
+    } catch (err) {
+      console.error('Failed to unsuspend user:', err);
     } finally {
       setActionLoading(null);
     }
@@ -70,25 +85,33 @@ function ReportRow({ reportGroup, onAction }) {
             <p className="text-sm text-surface-500 mt-1.5 line-clamp-2 leading-relaxed">{post.content}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+        <div className="flex items-center gap-1.5 ml-4">
           <button
-            className="p-2 rounded-xl text-surface-400 hover:text-red-500 hover:bg-red-50 transition-all"
+            className="touch-btn rounded-xl text-surface-400 hover:text-red-500 hover:bg-red-50 transition-all"
             onClick={(e) => { e.stopPropagation(); handleDeletePost(); }}
             disabled={isLoading}
-            title="Delete post"
+            title={t('admin.deletePost')}
           >
             {actionLoading === 'delete' ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
           </button>
           <button
-            className="p-2 rounded-xl text-surface-400 hover:text-orange-500 hover:bg-orange-50 transition-all"
+            className="touch-btn rounded-xl text-surface-400 hover:text-orange-500 hover:bg-orange-50 transition-all"
             onClick={(e) => { e.stopPropagation(); handleSuspendUser(); }}
             disabled={isLoading}
-            title="Suspend user"
+            title={t('admin.suspendUser')}
           >
             {actionLoading === 'suspend' ? <Loader2 size={16} className="animate-spin" /> : <Ban size={16} />}
           </button>
           <button
-            className={`p-2 rounded-xl transition-all ${expanded ? 'text-primary-600 bg-primary-50' : 'text-surface-400 hover:text-surface-600 hover:bg-surface-100'}`}
+            className="touch-btn rounded-xl text-surface-400 hover:text-emerald-500 hover:bg-emerald-50 transition-all"
+            onClick={(e) => { e.stopPropagation(); handleUnsuspendUser(); }}
+            disabled={isLoading}
+            title={t('admin.unsuspendUser')}
+          >
+            {actionLoading === 'unsuspend' ? <Loader2 size={16} className="animate-spin" /> : <UserCheck size={16} />}
+          </button>
+          <button
+            className={`touch-btn rounded-xl transition-all ${expanded ? 'text-primary-600 bg-primary-50' : 'text-surface-400 hover:text-surface-600 hover:bg-surface-100'}`}
             onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
           >
             <Eye size={16} />
@@ -98,7 +121,7 @@ function ReportRow({ reportGroup, onAction }) {
 
       {expanded && (
         <div className="border-t border-surface-100 bg-surface-50/50 p-4 sm:p-6 space-y-4 animate-slide-down">
-          <h4 className="text-sm font-semibold text-surface-700">Reports ({reports.length})</h4>
+          <h4 className="text-sm font-semibold text-surface-700">{t('admin.reportDetails', { count: reports.length })}</h4>
           <div className="space-y-3">
             {reports.map((report) => (
               <div key={report._id} className="bg-white rounded-xl p-4 border border-surface-200 shadow-sm">
@@ -110,7 +133,7 @@ function ReportRow({ reportGroup, onAction }) {
                     </span>
                   </div>
                   <button
-                    className="btn-ghost text-xs text-emerald-600 hover:bg-emerald-50 p-1.5"
+                    className="btn-ghost text-xs text-emerald-600 hover:bg-emerald-50"
                     onClick={() => handleDismiss(report._id)}
                     disabled={isLoading}
                   >
@@ -119,7 +142,7 @@ function ReportRow({ reportGroup, onAction }) {
                     ) : (
                       <CheckCircle size={14} className="mr-1" />
                     )}
-                    Dismiss
+                    {t('admin.dismiss')}
                   </button>
                 </div>
                 {report.description && (
@@ -135,15 +158,16 @@ function ReportRow({ reportGroup, onAction }) {
 }
 
 function DashboardStats({ stats }) {
+  const { t } = useTranslation();
   const cards = [
-    { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-primary-600', bg: 'bg-primary-50' },
-    { label: 'Active Posts', value: stats.totalPosts, icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Pending Reports', value: stats.pendingReports, icon: Flag, color: 'text-red-600', bg: 'bg-red-50' },
-    { label: 'Suspended', value: stats.suspendedUsers, icon: UserX, color: 'text-orange-600', bg: 'bg-orange-50' },
+    { label: t('admin.totalUsers'), value: stats.totalUsers, icon: Users, color: 'text-primary-600', bg: 'bg-primary-50' },
+    { label: t('admin.activePosts'), value: stats.totalPosts, icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: t('admin.pendingReports'), value: stats.pendingReports, icon: Flag, color: 'text-red-600', bg: 'bg-red-50' },
+    { label: t('admin.suspended'), value: stats.suspendedUsers, icon: UserX, color: 'text-orange-600', bg: 'bg-orange-50' },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
       {cards.map(({ label, value, icon: Icon, color, bg }) => (
         <div key={label} className="card p-5 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3">
@@ -162,6 +186,7 @@ function DashboardStats({ stats }) {
 }
 
 export default function AdminModerationTable() {
+  const { t } = useTranslation();
   const [reportedPosts, setReportedPosts] = useState([]);
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -216,12 +241,12 @@ export default function AdminModerationTable() {
             <Shield size={20} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-surface-900">Moderation Dashboard</h1>
-            <p className="text-sm text-surface-500">Manage reported content and user moderation</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-surface-900">{t('admin.dashboard')}</h1>
+            <p className="text-sm text-surface-500">{t('admin.subtitle')}</p>
           </div>
         </div>
         <button className="btn-ghost" onClick={fetchData}>
-          <RefreshCw size={16} className="mr-1.5" /> Refresh
+          <RefreshCw size={16} className="mr-1.5" /> {t('admin.refresh')}
         </button>
       </div>
 
@@ -231,12 +256,12 @@ export default function AdminModerationTable() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-surface-900">
-              Reported Content
+              {t('admin.reportedContent')}
               {reportedPosts.length > 0 && (
                 <span className="text-surface-400 font-normal text-sm ml-2">({reportedPosts.length})</span>
               )}
             </h2>
-            <p className="text-sm text-surface-500 mt-0.5">Posts sorted by number of reports. Click to expand details.</p>
+            <p className="text-sm text-surface-500 mt-0.5">{t('admin.reportedHint')}</p>
           </div>
         </div>
 
@@ -246,8 +271,8 @@ export default function AdminModerationTable() {
               <CheckCircle size={28} className="text-emerald-400" />
             </div>
             <div>
-              <p className="text-surface-500 font-medium">All clear!</p>
-              <p className="text-sm text-surface-400 mt-1">No pending reports to review.</p>
+              <p className="text-surface-500 font-medium">{t('admin.allClear')}</p>
+              <p className="text-sm text-surface-400 mt-1">{t('admin.allClearHint')}</p>
             </div>
           </div>
         ) : (

@@ -5,6 +5,7 @@ import { feedAPI } from '../utils/api';
 import PostCard from './PostCard';
 import CreatePost from './CreatePost';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/I18nContext';
 
 function FeedSkeleton() {
   return (
@@ -29,8 +30,9 @@ function FeedSkeleton() {
 }
 
 function FeedEmpty({ isPersonalized, hashtag }) {
+  const { t } = useTranslation();
   return (
-    <div className="card p-16 text-center space-y-4 animate-fade-in">
+    <div className="card p-8 sm:p-16 text-center space-y-4 animate-fade-in">
       <div className="w-14 h-14 rounded-2xl bg-surface-100 flex items-center justify-center mx-auto">
         <Inbox size={28} className="text-surface-400" />
       </div>
@@ -46,7 +48,7 @@ function FeedEmpty({ isPersonalized, hashtag }) {
         </>
       ) : (
         <>
-          <p className="text-surface-500 font-medium">No posts yet</p>
+          <p className="text-surface-500 font-medium">{t('profile.noPosts')}</p>
           <p className="text-sm text-surface-400">Be the first to share something!</p>
         </>
       )}
@@ -56,6 +58,7 @@ function FeedEmpty({ isPersonalized, hashtag }) {
 
 export default function FeedContainer({ type = 'personalized', hashtag = '', limit = 10 }) {
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
 
   const fetchFn = useCallback(
     (page, lim, filter) => {
@@ -104,11 +107,11 @@ export default function FeedContainer({ type = 'personalized', hashtag = '', lim
           <AlertCircle size={28} className="text-red-400" />
         </div>
         <div>
-          <p className="text-red-600 font-medium">Failed to load feed</p>
+          <p className="text-red-600 font-medium">{t('common.error')}</p>
           <p className="text-sm text-surface-400 mt-1">{error}</p>
         </div>
         <button className="btn-soft" onClick={refresh}>
-          <RefreshCw size={16} className="mr-2" /> Try Again
+          <RefreshCw size={16} className="mr-2" /> {t('common.retry')}
         </button>
       </div>
     );
@@ -128,7 +131,7 @@ export default function FeedContainer({ type = 'personalized', hashtag = '', lim
             <>
               {type === 'trending' && <Flame size={20} className="text-accent-500" />}
               <h2 className="text-lg font-bold text-surface-900">
-                {type === 'trending' ? 'Trending' : 'Your Feed'}
+                {type === 'trending' ? t('nav.trending') : 'Your Feed'}
               </h2>
             </>
           )}

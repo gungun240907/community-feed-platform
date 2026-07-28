@@ -32,7 +32,25 @@ const postSchema = new mongoose.Schema(
         trim: true,
       },
     ],
-    likeCount: {
+    postType: {
+    type: String,
+    enum: ['post', 'question', 'answer'],
+    default: 'post',
+  },
+  acceptedAnswer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post',
+    default: null,
+  },
+  upvoteCount: {
+    type: Number,
+    default: 0,
+  },
+  downvoteCount: {
+    type: Number,
+    default: 0,
+  },
+  likeCount: {
       type: Number,
       default: 0,
     },

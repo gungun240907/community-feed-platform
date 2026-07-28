@@ -3,7 +3,7 @@ import Navbar from './Navbar';
 
 export default function Layout({ children }) {
   return (
-    <div className="min-h-screen bg-surface-50">
+    <div className="min-h-screen bg-surface-50 overflow-x-hidden">
       <div className="fixed inset-0 bg-grid pointer-events-none" />
       <div className="relative">
         <Navbar />

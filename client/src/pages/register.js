@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { UserPlus, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/I18nContext';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { register, isAuthenticated } = useAuth();
-  const [form, setForm] = useState({ username: '', email: '', password: '', displayName: '' });
+  const [form, setForm] = useState({ username: '', email: '', password: '', displayName: '', phone: '' });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,16 +36,16 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm animate-slide-up">
         <a href="/" className="inline-flex items-center gap-1.5 text-sm text-surface-400 hover:text-surface-600 mb-6 transition-colors">
           <ArrowLeft size={16} />
-          Back to home
+          {t('common.backToHome')}
         </a>
 
-        <div className="card p-8 space-y-6">
+        <div className="card p-6 sm:p-8 space-y-6">
           <div className="text-center space-y-2">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent-500 to-primary-500 flex items-center justify-center mx-auto shadow-lg shadow-accent-500/20">
               <UserPlus size={22} className="text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-surface-900">Create account</h1>
-            <p className="text-sm text-surface-500">Join the developer community</p>
+            <h1 className="text-2xl font-bold text-surface-900">{t('auth.register.title')}</h1>
+            <p className="text-sm text-surface-500">{t('auth.register.subtitle')}</p>
           </div>
 
           {error && (
@@ -55,7 +57,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-surface-700">Username</label>
+              <label className="block text-sm font-medium text-surface-700">{t('auth.register.username')}</label>
               <input
                 type="text"
                 className="input-field"
@@ -70,7 +72,7 @@ export default function RegisterPage() {
 
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-surface-700">
-                Display Name <span className="text-surface-400 font-normal">(optional)</span>
+                {t('auth.register.displayName')} <span className="text-surface-400 font-normal">{t('auth.register.displayNameOptional')}</span>
               </label>
               <input
                 type="text"
@@ -83,7 +85,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-surface-700">Email</label>
+              <label className="block text-sm font-medium text-surface-700">{t('auth.register.email')}</label>
               <input
                 type="email"
                 className="input-field"
@@ -95,13 +97,26 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-surface-700">Password</label>
+              <label className="block text-sm font-medium text-surface-700">
+                {t('auth.register.phone')} <span className="text-surface-400 font-normal">{t('auth.register.phoneOptional')}</span>
+              </label>
+              <input
+                type="tel"
+                className="input-field"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="+1234567890"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-surface-700">{t('auth.register.password')}</label>
               <input
                 type="password"
                 className="input-field"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder="At least 6 characters"
+                placeholder={t('auth.register.passwordHint')}
                 required
                 minLength={6}
               />
@@ -115,7 +130,7 @@ export default function RegisterPage() {
               {isSubmitting ? (
                 <Loader2 size={18} className="animate-spin mr-2" />
               ) : null}
-              Create Account
+              {t('auth.register.button')}
             </button>
           </form>
 
@@ -124,7 +139,7 @@ export default function RegisterPage() {
               <div className="w-full border-t border-surface-200" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-3 text-surface-400">Already have an account?</span>
+              <span className="bg-white px-3 text-surface-400">{t('auth.register.hasAccount')}</span>
             </div>
           </div>
 
@@ -132,7 +147,7 @@ export default function RegisterPage() {
             href="/login"
             className="btn-secondary w-full justify-center"
           >
-            Sign in
+            {t('auth.login.button')}
           </a>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Bell, CheckCheck, Heart, MessageCircle, UserPlus, AtSign } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/I18nContext';
 
 const typeConfig = {
   like: { icon: Heart, color: 'text-red-500', bg: 'bg-red-50', label: 'liked your post' },
@@ -15,6 +16,7 @@ export default function NotificationBell() {
   const { isAuthenticated } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
+  const { t } = useTranslation();
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -33,16 +35,16 @@ export default function NotificationBell() {
     const diff = Date.now() - new Date(date).getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
+    if (mins < 60) return t('post.minutes', { m: mins });
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
+    if (hours < 24) return t('post.hours', { h: hours });
+    return t('post.days', { d: Math.floor(hours / 24) });
   };
 
   return (
     <div className="relative" ref={dropdownRef}>
       <button
-        className={`relative p-2 rounded-xl transition-all duration-200 ${
+        className={`relative touch-btn rounded-xl transition-all duration-200 ${
           isOpen ? 'bg-primary-50 text-primary-600' : 'text-surface-400 hover:text-surface-600 hover:bg-surface-100'
         }`}
         onClick={() => setIsOpen(!isOpen)}
@@ -57,15 +59,15 @@ export default function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-surface-200 z-50 max-h-[480px] flex flex-col animate-scale-in overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] sm:w-96 min-w-[280px] max-w-[95vw] bg-white rounded-2xl shadow-xl border border-surface-200 z-50 max-h-[480px] flex flex-col animate-scale-in overflow-hidden break-words">
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-surface-100">
-            <h3 className="font-semibold text-sm text-surface-900">Notifications</h3>
+            <h3 className="font-semibold text-sm text-surface-900">{t('notifications.title')}</h3>
             {unreadCount > 0 && (
               <button
                 className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium transition-colors"
                 onClick={markAllAsRead}
               >
-                <CheckCheck size={14} /> Mark all read
+                <CheckCheck size={14} /> {t('notifications.markAllRead')}
               </button>
             )}
           </div>
@@ -76,7 +78,7 @@ export default function NotificationBell() {
                 <div className="w-12 h-12 rounded-2xl bg-surface-100 flex items-center justify-center mx-auto mb-3">
                   <Bell size={24} className="text-surface-400" />
                 </div>
-                <p className="text-sm text-surface-400">No notifications yet</p>
+                <p className="text-sm text-surface-400">{t('notifications.empty')}</p>
               </div>
             ) : (
               notifications.map((notification) => {

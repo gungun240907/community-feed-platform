@@ -3,6 +3,35 @@ const Post = require('../models/Post');
 const Like = require('../models/Like');
 const Follower = require('../models/Follower');
 const Notification = require('../models/Notification');
+const ReputationLog = require('../models/ReputationLog');
+const { addReputation } = require('../utils/reputationHelper');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const uploadDir = path.join(__dirname, '../../uploads/avatars');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      cb(null, `avatar_${req.user._id}${ext}`);
+    },
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
+    if (allowed.test(path.extname(file.originalname))) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files (jpg, jpeg, png, gif, webp) are allowed'));
+    }
+  },
+});
 
 async function getProfile(req, res, next) {
   try {
@@ -25,13 +54,27 @@ async function getProfile(req, res, next) {
 
 async function updateProfile(req, res, next) {
   try {
-    const { displayName, bio, avatar } = req.body;
+    const { displayName, bio, avatar, phone } = req.body;
     const updates = {};
     if (displayName !== undefined) updates.displayName = displayName;
     if (bio !== undefined) updates.bio = bio;
     if (avatar !== undefined) updates.avatar = avatar;
+    if (phone !== undefined) updates.phone = phone;
 
     const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true });
+
+    const hasDisplayName = user.displayName && user.displayName.trim();
+    const hasBio = user.bio && user.bio.trim();
+    const hasAvatar = user.avatar && user.avatar.trim();
+    const hasPhone = user.phone && user.phone.trim();
+
+    if (hasDisplayName && hasBio && hasAvatar && hasPhone) {
+      const existing = await ReputationLog.findOne({ user: user._id, reason: 'profile_completed' });
+      if (!existing) {
+        await addReputation(user._id, 'profile_completed', null, null);
+      }
+    }
+
     res.json({ user });
   } catch (error) {
     next(error);
@@ -175,4 +218,21 @@ async function getUserPosts(req, res, next) {
   }
 }
 
-module.exports = { getProfile, updateProfile, followUser, unfollowUser, getFollowers, getFollowing, getUserPosts };
+async function uploadAvatar(req, res, next) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { avatar: avatarUrl },
+      { new: true }
+    );
+    res.json({ user, avatar: avatarUrl });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { getProfile, updateProfile, followUser, unfollowUser, getFollowers, getFollowing, getUserPosts, upload, uploadAvatar };

@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -10,6 +11,14 @@ const postRoutes = require('./routes/posts');
 const userRoutes = require('./routes/users');
 const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
+const subscriptionRoutes = require('./routes/subscriptions');
+const supportRoutes = require('./routes/support');
+const searchRoutes = require('./routes/search');
+const reputationRoutes = require('./routes/reputation');
+const languageRoutes = require('./routes/language');
+const webhookRoutes = require('./routes/webhook');
+const sessionRoutes = require('./routes/sessions');
+const loginLogRoutes = require('./routes/loginLogs');
 
 const app = express();
 const server = http.createServer(app);
@@ -23,6 +32,9 @@ const io = new Server(server, {
 
 app.set('io', io);
 
+// Webhook route must be before global express.json() to preserve raw body for Razorpay signature verification
+app.use('/api/webhook', webhookRoutes);
+
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -31,12 +43,23 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/feed', feedRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+
+app.use('/api/search', searchRoutes);
+app.use('/api/support', supportRoutes);
+app.use('/api/reputation', reputationRoutes);
+app.use('/api/language', languageRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/login-logs', loginLogRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

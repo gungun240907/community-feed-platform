@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { authAPI, setOnUnauthorized } from '../utils/api';
+import { authAPI, setOnUnauthorized, sessionAPI } from '../utils/api';
 
 const AuthContext = createContext(null);
 
@@ -36,6 +36,23 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (credentials) => {
     const response = await authAPI.login(credentials);
+    const data = response.data;
+
+    if (data.requiresOtp) {
+      return data;
+    }
+
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setUser(data.user);
+      setToken(data.token);
+    }
+    return data;
+  }, []);
+
+  const verifyLoginOtp = useCallback(async (data) => {
+    const response = await authAPI.verifyLoginOtp(data);
     const { user: userData, token: newToken } = response.data;
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(userData));
@@ -54,7 +71,11 @@ export function AuthProvider({ children }) {
     return userData;
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await sessionAPI.logout();
+    } catch {
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
@@ -63,10 +84,11 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     setOnUnauthorized(() => {
-      logout();
+      setUser(null);
+      setToken(null);
       router.push('/login');
     });
-  }, [logout, router]);
+  }, [router]);
 
   const updateUser = useCallback((updates) => {
     setUser((prev) => ({ ...prev, ...updates }));
@@ -80,9 +102,14 @@ export function AuthProvider({ children }) {
     isLoading,
     isAuthenticated: !!user,
     login,
+    verifyLoginOtp,
     register,
     logout,
     updateUser,
+    refreshUser: () => {
+      const storedToken = localStorage.getItem('token');
+      if (storedToken) loadUser(storedToken);
+    },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -3,6 +3,14 @@ node_modules/
 .env
 .env.local
 .env.production
+.env.development
+.env.test
 .vercel
 *.log
 .DS_Store
+*.pem
+*.key
+nul
+.token
+el1pojectworkingfine/
+el1pojectworkingfine_temp/

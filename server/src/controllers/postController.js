@@ -4,12 +4,15 @@ const Comment = require('../models/Comment');
 const Notification = require('../models/Notification');
 const Like = require('../models/Like');
 const { extractHashtags, extractMentions } = require('../utils/hashtagExtractor');
+const User = require('../models/User');
+const { addReputation } = require('../utils/reputationHelper');
 
 const POPULATE_AUTHOR = 'username displayName avatar';
 
 async function createPost(req, res, next) {
   try {
-    const { content, mediaUrls } = req.body;
+    const { content, mediaUrls, postType } = req.body;
+    const type = postType === 'answer' || postType === 'question' ? postType : 'post';
 
     if (!content || !content.trim()) {
       return res.status(400).json({ error: 'Post content is required' });
@@ -22,11 +25,28 @@ async function createPost(req, res, next) {
       author: req.user._id,
       content,
       mediaUrls: mediaUrls || [],
+      postType: type,
       hashtags,
       mentions,
     });
 
+    if (type === 'answer') {
+      await addReputation(req.user._id, 'post_answer', 'post', post._id);
+    }
+
     const populated = await post.populate('author', POPULATE_AUTHOR);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const userDoc = await User.findById(req.user._id).select('postCount postCountResetDate');
+    const needsReset = !userDoc.postCountResetDate || userDoc.postCountResetDate < today;
+
+    if (needsReset) {
+      await User.findByIdAndUpdate(req.user._id, { $set: { postCount: 1, postCountResetDate: today } });
+    } else {
+      await User.findByIdAndUpdate(req.user._id, { $inc: { postCount: 1 } });
+    }
 
     const io = req.app.get('io');
     if (io && mentions.length > 0) {
@@ -129,9 +149,17 @@ async function deletePost(req, res, next) {
       return res.status(403).json({ error: 'Unauthorized to delete this post' });
     }
 
+    const isAdminDeletingOthers = req.user.role === 'admin' && post.author.toString() !== req.user._id.toString();
+
     post.isDeleted = true;
     post.deletedAt = new Date();
     await post.save();
+
+    if (isAdminDeletingOthers) {
+      await addReputation(post.author, 'admin_removed', 'post', post._id);
+    } else if (post.postType === 'answer') {
+      await addReputation(req.user._id, 'answer_deleted', 'post', post._id);
+    }
 
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
@@ -154,7 +182,12 @@ async function toggleLike(req, res, next) {
 
     if (existing) {
       await Like.deleteOne({ _id: existing._id });
-      await Post.findByIdAndUpdate(post._id, { $inc: { likeCount: -1 } });
+      const newCount = Math.max(0, post.likeCount - 1);
+      let updateFields = { likeCount: newCount };
+      if (post.postType !== 'post') {
+        updateFields.upvoteCount = Math.max(0, (post.upvoteCount || 0) - 1);
+      }
+      await Post.findByIdAndUpdate(post._id, { $set: updateFields });
 
       const io = req.app.get('io');
       if (io) {
@@ -162,14 +195,19 @@ async function toggleLike(req, res, next) {
           postId: post._id,
           userId: req.user._id,
           liked: false,
-          likeCount: Math.max(0, post.likeCount - 1),
+          likeCount: newCount,
         });
       }
 
-      res.json({ liked: false, likeCount: Math.max(0, post.likeCount - 1) });
+      res.json({ liked: false, likeCount: newCount });
     } else {
       await Like.create({ user: req.user._id, post: post._id, type: 'like' });
-      await Post.findByIdAndUpdate(post._id, { $inc: { likeCount: 1 } });
+      const newCount = post.likeCount + 1;
+      let updateFields = { likeCount: newCount };
+      if (post.postType !== 'post') {
+        updateFields.upvoteCount = (post.upvoteCount || 0) + 1;
+      }
+      await Post.findByIdAndUpdate(post._id, { $set: updateFields });
 
       if (post.author.toString() !== req.user._id.toString()) {
         await Notification.create({
@@ -189,18 +227,92 @@ async function toggleLike(req, res, next) {
         }
       }
 
+      const newUpvoteCount = (post.upvoteCount || 0) + 1;
+      if (post.postType === 'answer' && newUpvoteCount === 5) {
+        await addReputation(post.author, 'answer_5_upvotes', 'post', post._id);
+      }
+      if (post.postType === 'question' && newUpvoteCount === 10) {
+        await addReputation(post.author, 'question_10_upvotes', 'post', post._id);
+      }
+
       const io = req.app.get('io');
       if (io) {
         io.to(`post:${post._id}`).emit('likeToggled', {
           postId: post._id,
           userId: req.user._id,
           liked: true,
-          likeCount: post.likeCount + 1,
+          likeCount: newCount,
         });
       }
 
-      res.json({ liked: true, likeCount: post.likeCount + 1 });
+      res.json({ liked: true, likeCount: newCount });
     }
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function toggleDownvote(req, res, next) {
+  try {
+    const post = await Post.findOne({ _id: req.params.id, isDeleted: false });
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const existing = await Like.findOne({
+      user: req.user._id,
+      post: post._id,
+      type: 'downvote',
+    });
+
+    if (existing) {
+      await Like.deleteOne({ _id: existing._id });
+      const newCount = Math.max(0, (post.downvoteCount || 0) - 1);
+      await Post.findByIdAndUpdate(post._id, { $set: { downvoteCount: newCount } });
+      res.json({ downvoted: false, downvoteCount: newCount });
+    } else {
+      await Like.create({ user: req.user._id, post: post._id, type: 'downvote' });
+      const newCount = (post.downvoteCount || 0) + 1;
+      await Post.findByIdAndUpdate(post._id, { $set: { downvoteCount: newCount } });
+
+      if (post.author.toString() !== req.user._id.toString()) {
+        await addReputation(post.author, 'downvote_received', 'post', post._id);
+      }
+
+      res.json({ downvoted: true, downvoteCount: newCount });
+    }
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function acceptAnswer(req, res, next) {
+  try {
+    const question = await Post.findOne({ _id: req.params.id, postType: 'question', isDeleted: false });
+    if (!question) {
+      return res.status(404).json({ error: 'Question not found' });
+    }
+
+    if (question.author.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Only the question author can accept an answer' });
+    }
+
+    const { answerId } = req.body;
+    if (!answerId) {
+      return res.status(400).json({ error: 'Answer ID is required' });
+    }
+
+    const answer = await Post.findOne({ _id: answerId, postType: 'answer', isDeleted: false });
+    if (!answer) {
+      return res.status(404).json({ error: 'Answer not found' });
+    }
+
+    question.acceptedAnswer = answer._id;
+    await question.save();
+
+    await addReputation(answer.author, 'accepted_answer', 'post', answer._id);
+
+    res.json({ message: 'Answer accepted', acceptedAnswer: answer._id });
   } catch (error) {
     next(error);
   }
@@ -338,6 +450,29 @@ async function createComment(req, res, next) {
   }
 }
 
+async function sharePost(req, res, next) {
+  try {
+    const post = await Post.findOne({ _id: req.params.id, isDeleted: false });
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    await Post.findByIdAndUpdate(post._id, { $inc: { shareCount: 1 } });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`post:${post._id}`).emit('shareCountUpdated', {
+        postId: post._id,
+        shareCount: post.shareCount + 1,
+      });
+    }
+
+    res.json({ shared: true, shareCount: post.shareCount + 1 });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function deleteComment(req, res, next) {
   try {
     const comment = await Comment.findById(req.params.commentId);
@@ -366,8 +501,11 @@ module.exports = {
   updatePost,
   deletePost,
   toggleLike,
+  toggleDownvote,
   toggleBookmark,
+  acceptAnswer,
   getComments,
   createComment,
   deleteComment,
+  sharePost,
 };

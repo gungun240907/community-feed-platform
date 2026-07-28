@@ -1,6 +1,7 @@
 const Report = require('../models/Report');
 const Post = require('../models/Post');
 const User = require('../models/User');
+const { addReputation } = require('../utils/reputationHelper');
 
 async function getReportedPosts(req, res, next) {
   try {
@@ -82,6 +83,8 @@ async function deletePostAsAdmin(req, res, next) {
       { post: postId, status: 'pending' },
       { status: 'actioned', actionedBy: req.user._id, actionedAt: new Date() }
     );
+
+    await addReputation(post.author, 'admin_removed', 'post', post._id);
 
     res.json({ message: 'Post deleted and associated reports actioned' });
   } catch (error) {

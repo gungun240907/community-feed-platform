@@ -11,6 +11,7 @@ const {
   getDashboardStats,
 } = require('../controllers/adminController');
 const { createReport } = require('../controllers/reportController');
+const { getAllLoginLogs } = require('../controllers/loginLogController');
 
 router.use(authenticate);
 
@@ -20,6 +21,7 @@ router.delete('/posts/:postId', requireAdmin, deletePostAsAdmin);
 router.put('/users/:userId/suspend', requireAdmin, suspendUser);
 router.put('/users/:userId/unsuspend', requireAdmin, unsuspendUser);
 router.get('/stats', requireAdmin, getDashboardStats);
+router.get('/login-logs', requireAdmin, getAllLoginLogs);
 
 router.post('/posts/:id/report', createReport);
 

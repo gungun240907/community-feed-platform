@@ -19,6 +19,15 @@ const userSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+    phone: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    lastPasswordResetRequest: {
+      type: Date,
+      default: null,
+    },
     password: {
       type: String,
       required: [true, 'Password is required'],
@@ -60,6 +69,33 @@ const userSchema = new mongoose.Schema(
     followingCount: {
       type: Number,
       default: 0,
+    },
+    subscriptionPlan: {
+      type: String,
+      enum: ['free', 'bronze', 'silver', 'gold'],
+      default: 'free',
+    },
+    badge: {
+      type: String,
+      enum: [null, 'bronze', 'silver', 'gold'],
+      default: null,
+    },
+    postCount: {
+      type: Number,
+      default: 0,
+    },
+    postCountResetDate: {
+      type: Date,
+      default: null,
+    },
+    featuredProfile: {
+      type: Boolean,
+      default: false,
+    },
+    language: {
+      type: String,
+      enum: ['en', 'es', 'hi', 'pt', 'zh', 'fr'],
+      default: 'en',
     },
   },
   {

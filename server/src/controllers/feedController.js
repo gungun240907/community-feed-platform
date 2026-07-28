@@ -15,11 +15,6 @@ async function getPersonalizedFeed(req, res, next) {
 
     if (hashtag) {
       filter.hashtags = hashtag.toLowerCase();
-    } else if (req.user) {
-      const following = await Follower.find({ follower: req.user._id }).select('following');
-      const followingIds = following.map((f) => f.following);
-      followingIds.push(req.user._id);
-      filter.author = { $in: followingIds };
     }
 
     const [posts, total] = await Promise.all([
@@ -54,12 +49,17 @@ async function getTrendingFeed(req, res, next) {
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
 
     let posts = await Post.find({ isDeleted: false })
-      .populate('author', 'username displayName avatar')
+      .populate('author', 'username displayName avatar featuredProfile')
       .sort({ createdAt: -1 })
       .limit(200)
       .lean();
 
     const scored = calculateBulkScores(posts);
+    scored.forEach((post) => {
+      if (post.author && post.author.featuredProfile) {
+        post.engagementScore *= 1.2;
+      }
+    });
     scored.sort((a, b) => b.engagementScore - a.engagementScore);
 
     const topPosts = scored.slice(0, limit);
