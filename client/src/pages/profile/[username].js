@@ -47,6 +47,7 @@ export default function ProfilePage() {
   const [transferError, setTransferError] = useState('');
   const [transferSubmitting, setTransferSubmitting] = useState(false);
   const [transferInfo, setTransferInfo] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     if (!username) return;
@@ -328,7 +329,7 @@ export default function ProfilePage() {
           <a href="/login-history" className="btn-ghost text-sm gap-2">
             <History size={16} /> {t('nav.loginHistory', 'Login History')}
           </a>
-          <button onClick={logout} className="btn-ghost text-sm gap-2 text-red-500 hover:text-red-600 hover:bg-red-50">
+          <button onClick={() => setShowLogoutConfirm(true)} className="btn-ghost text-sm gap-2 text-red-500 hover:text-red-600 hover:bg-red-50">
             <LogOut size={16} /> Logout
           </button>
         </div>
@@ -553,6 +554,30 @@ export default function ProfilePage() {
           ) : (
             <p className="text-sm text-surface-400 text-center py-8">Unable to load privileges</p>
           )}
+        </div>
+      )}
+
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in"
+             onClick={() => setShowLogoutConfirm(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-scale-in"
+               onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg text-surface-900">{t('nav.logout')}</h3>
+                <p className="text-sm text-surface-500">{t('nav.logoutConfirm') || 'Are you sure you want to logout?'}</p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button className="btn-secondary" onClick={() => setShowLogoutConfirm(false)}>{t('common.cancel') || 'Cancel'}</button>
+              <button className="btn-danger" onClick={() => { logout(); setShowLogoutConfirm(false); }}>
+                <LogOut size={16} className="mr-1.5" /> {t('nav.logout')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Code2, Home, Flame, LogIn, UserPlus, LogOut, Shield, Crown, Edit3, Sparkles, MessageCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Code2, Home, Flame, LogIn, UserPlus, LogOut, Shield, Crown, Edit3, Sparkles, MessageCircle, AlertTriangle, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/I18nContext';
 import NotificationBell from './NotificationBell';
@@ -9,6 +9,7 @@ import LanguageSwitcher from './LanguageSwitcher';
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const { t } = useTranslation();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   return (
     <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-surface-200/80">
@@ -81,7 +82,7 @@ export default function Navbar() {
                   </a>
                   <button
                     className="btn-ghost text-sm text-surface-400 hover:text-red-500"
-                    onClick={logout}
+                    onClick={() => setShowLogoutConfirm(true)}
                     title={t('nav.logout')}
                     aria-label={t('nav.logout')}
                   >
@@ -104,6 +105,29 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in"
+             onClick={() => setShowLogoutConfirm(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-scale-in"
+               onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg text-surface-900">{t('nav.logout')}</h3>
+                <p className="text-sm text-surface-500">{t('nav.logoutConfirm') || 'Are you sure you want to logout?'}</p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button className="btn-secondary" onClick={() => setShowLogoutConfirm(false)}>{t('common.cancel') || 'Cancel'}</button>
+              <button className="btn-danger" onClick={() => { logout(); setShowLogoutConfirm(false); }}>
+                <LogOut size={16} className="mr-1.5" /> {t('nav.logout')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

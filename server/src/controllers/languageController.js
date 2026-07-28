@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const Otp = require('../models/Otp');
 const User = require('../models/User');
+const twilio = require('twilio');
 
 const VALID_LANGUAGES = ['en', 'es', 'hi', 'pt', 'zh', 'fr'];
 
@@ -56,23 +57,37 @@ async function requestLanguageSwitch(req, res, next) {
       });
     }
 
-    if (transporter && useEmail) {
-      await transporter.sendMail({
-        from: `"DevFeed" <${process.env.SMTP_FROM || 'noreply@devfeed.com'}>`,
-        to: contact,
-        subject: 'Your OTP for language change',
-        html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;text-align:center;">
-          <h2>Language Change Verification</h2>
-          <p>Your OTP code is:</p>
-          <div style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#f3f4f6;padding:16px;border-radius:12px;margin:16px 0;">${code}</div>
-          <p style="color:#6b7280;font-size:14px;">This code expires in 10 minutes.</p>
-        </div>`,
-      });
-      console.log(`OTP email sent to ${contact}`);
-    } else if (useEmail) {
-      console.log(`Email service not configured. OTP for ${contact}: ${code}`);
+    if (useEmail) {
+      if (transporter) {
+        await transporter.sendMail({
+          from: `"DevFeed" <${process.env.SMTP_FROM || 'noreply@devfeed.com'}>`,
+          to: contact,
+          subject: 'Your OTP for language change',
+          html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;text-align:center;">
+            <h2>Language Change Verification</h2>
+            <p>Your OTP code is:</p>
+            <div style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#f3f4f6;padding:16px;border-radius:12px;margin:16px 0;">${code}</div>
+            <p style="color:#6b7280;font-size:14px;">This code expires in 10 minutes.</p>
+          </div>`,
+        });
+        console.log(`OTP email sent to ${contact}`);
+      } else {
+        console.log(`Email service not configured. OTP for ${contact}: ${code}`);
+      }
     } else {
-      console.log(`Phone OTP for ${contact}: ${code} (SMS integration not configured)`);
+      const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+        ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+        : null;
+      if (twilioClient && process.env.TWILIO_PHONE_NUMBER) {
+        await twilioClient.messages.create({
+          body: `Your DevFeed OTP is: ${code}. It expires in 10 minutes.`,
+          from: process.env.TWILIO_PHONE_NUMBER,
+          to: contact,
+        });
+        console.log(`OTP SMS sent to ${contact}`);
+      } else {
+        console.log(`SMS not configured. OTP for ${contact}: ${code}`);
+      }
     }
 
     res.json({
