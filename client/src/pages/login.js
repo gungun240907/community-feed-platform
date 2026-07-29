@@ -8,7 +8,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { login, verifyLoginOtp, isAuthenticated } = useAuth();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ login: '', password: '' });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -56,7 +56,7 @@ export default function LoginPage() {
     setOtpSubmitting(true);
 
     try {
-      await verifyLoginOtp({ email: form.email, password: form.password, otp, trustDevice });
+      await verifyLoginOtp({ login: form.login, password: form.password, otp, trustDevice });
       router.push('/');
     } catch (err) {
       setOtpError(err.response?.data?.error || 'Invalid OTP. Please try again.');
@@ -197,11 +197,11 @@ export default function LoginPage() {
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-surface-700">{t('auth.login.username')}</label>
               <input
-                type="email"
+                type="text"
                 className="input-field"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="you@example.com"
+                value={form.login}
+                onChange={(e) => setForm({ ...form, login: e.target.value })}
+                placeholder="username or email"
                 required
               />
             </div>
@@ -232,7 +232,7 @@ export default function LoginPage() {
             <button
               type="submit"
               className="btn-primary w-full mt-2"
-              disabled={isSubmitting || !form.email || !form.password}
+              disabled={isSubmitting || !form.login || !form.password}
             >
               {isSubmitting ? (
                 <Loader2 size={18} className="animate-spin mr-2" />

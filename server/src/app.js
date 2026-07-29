@@ -127,6 +127,7 @@ let mongod = null;
 let dbReady = false;
 
 async function connectDB() {
+  mongoose.set('bufferCommands', false);
   mongoose.set('bufferTimeoutMS', 30000);
   if (MONGO_URI) {
     await mongoose.connect(MONGO_URI, {

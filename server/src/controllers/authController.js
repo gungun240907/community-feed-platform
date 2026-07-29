@@ -64,13 +64,15 @@ async function register(req, res, next) {
 
 async function login(req, res, next) {
   try {
-    const { email, password } = req.body;
+    const { login, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!login || !password) {
+      return res.status(400).json({ error: 'Username/email and password are required' });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({
+      $or: [{ email: login.toLowerCase().trim() }, { username: login.toLowerCase().trim() }],
+    }).select('+password');
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -199,13 +201,15 @@ async function login(req, res, next) {
 
 async function verifyLoginOtp(req, res, next) {
   try {
-    const { email, password, otp, trustDevice } = req.body;
+    const { login, password, otp, trustDevice } = req.body;
 
-    if (!email || !password || !otp) {
-      return res.status(400).json({ error: 'Email, password, and OTP are required' });
+    if (!login || !password || !otp) {
+      return res.status(400).json({ error: 'Username/email, password, and OTP are required' });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({
+      $or: [{ email: login.toLowerCase().trim() }, { username: login.toLowerCase().trim() }],
+    }).select('+password');
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
