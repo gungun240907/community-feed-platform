@@ -59,12 +59,17 @@ async function sendSubscriptionConfirmation(user, subscription, payment) {
                 <td style="padding: 8px 0; font-weight: 600; color: #1f2937;">${subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'N/A'}</td>
               </tr>
             </table>
-            ${payment?.invoiceUrl ? `
+            ${payment?.invoiceNumber ? `
             <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
               <h3 style="color: #1f2937; font-size: 16px;">Invoice</h3>
-              <a href="${payment.invoiceUrl}" style="display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 8px;">View Invoice</a>
+              <p style="color: #4b5563; font-size: 14px;">Invoice #: <strong>${payment.invoiceNumber}</strong></p>
             </div>
-            ` : ''}
+            ` : `
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+              <h3 style="color: #1f2937; font-size: 16px;">Invoice</h3>
+              <p style="color: #4b5563; font-size: 14px;">Your invoice has been generated and is available in your subscription dashboard.</p>
+            </div>
+            `}
             <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
               <h3 style="color: #1f2937; font-size: 16px;">Plan Features</h3>
               <ul style="color: #4b5563; line-height: 1.8; padding-left: 20px;">

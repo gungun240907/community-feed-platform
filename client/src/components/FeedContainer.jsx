@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useEffect } from 'react';
 import { Loader2, RefreshCw, AlertCircle, Inbox, Flame } from 'lucide-react';
 import useInfiniteScroll from '../hooks/useInfiniteScroll';
 import { feedAPI } from '../utils/api';
@@ -57,7 +57,7 @@ function FeedEmpty({ isPersonalized, hashtag }) {
 }
 
 export default function FeedContainer({ type = 'personalized', hashtag = '', limit = 10 }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, feedVersion } = useAuth();
   const { t } = useTranslation();
 
   const fetchFn = useCallback(
@@ -99,6 +99,10 @@ export default function FeedContainer({ type = 'personalized', hashtag = '', lim
     },
     [updatePost]
   );
+
+  useEffect(() => {
+    refresh();
+  }, [feedVersion, refresh]);
 
   if (error && posts.length === 0) {
     return (

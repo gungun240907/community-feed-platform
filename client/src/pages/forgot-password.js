@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { KeyRound, ArrowLeft, Loader2, Mail, Phone, Copy, CheckCircle, AlertCircle } from 'lucide-react';
 import { authAPI } from '../utils/api';
 import { useTranslation } from '../context/I18nContext';
+import PhoneInput from '../components/PhoneInput';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -108,13 +109,10 @@ export default function ForgotPasswordPage() {
                     required
                   />
                 ) : (
-                  <input
-                    type="tel"
-                    className="input-field"
+                  <PhoneInput
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+1234567890"
-                    required
+                    onChange={(val) => setPhone(val)}
+                    placeholder="Enter phone number"
                   />
                 )}
               </div>

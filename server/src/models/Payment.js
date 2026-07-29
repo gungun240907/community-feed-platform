@@ -29,6 +29,10 @@ const paymentSchema = new mongoose.Schema({
     enum: ['succeeded', 'pending', 'failed', 'refunded'],
     default: 'pending',
   },
+  invoiceNumber: {
+    type: String,
+    default: null,
+  },
   razorpayPaymentId: {
     type: String,
     default: null,

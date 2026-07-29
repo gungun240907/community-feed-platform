@@ -332,10 +332,12 @@ async function forgotPassword(req, res, next) {
     const now = new Date();
     if (user.lastPasswordResetRequest) {
       const lastRequest = new Date(user.lastPasswordResetRequest);
-      const diffInMs = now - lastRequest;
-      const hoursSinceLastRequest = diffInMs / (1000 * 60 * 60);
+      const isSameDay =
+        lastRequest.getFullYear() === now.getFullYear() &&
+        lastRequest.getMonth() === now.getMonth() &&
+        lastRequest.getDate() === now.getDate();
 
-      if (hoursSinceLastRequest < 24) {
+      if (isSameDay) {
         return res.status(429).json({
           error: 'You can use this option only one time per day.',
         });

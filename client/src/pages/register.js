@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { UserPlus, Loader2, ArrowLeft } from 'lucide-react';
+import { UserPlus, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/I18nContext';
+import PhoneInput from '../components/PhoneInput';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ username: '', email: '', password: '', displayName: '', phone: '' });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) router.push('/');
@@ -100,26 +102,34 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-surface-700">
                 {t('auth.register.phone')} <span className="text-surface-400 font-normal">{t('auth.register.phoneOptional')}</span>
               </label>
-              <input
-                type="tel"
-                className="input-field"
+              <PhoneInput
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="+1234567890"
+                onChange={(val) => setForm({ ...form, phone: val })}
+                placeholder="Enter phone number"
               />
             </div>
 
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-surface-700">{t('auth.register.password')}</label>
-              <input
-                type="password"
-                className="input-field"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder={t('auth.register.passwordHint')}
-                required
-                minLength={6}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className="input-field pr-11"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder={t('auth.register.passwordHint')}
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 touch-btn text-surface-400 hover:text-surface-600 transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <button

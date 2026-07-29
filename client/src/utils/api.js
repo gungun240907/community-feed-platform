@@ -112,6 +112,7 @@ export const adminAPI = {
 
 export const supportAPI = {
   submit: (data) => api.post('/support', data),
+  getMyTickets: (page = 1, limit = 20) => api.get('/support/tickets', { params: { page, limit } }),
 };
 
 export const languageAPI = {

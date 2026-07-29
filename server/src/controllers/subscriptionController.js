@@ -7,6 +7,13 @@ const {
   createRazorpayOrder,
 } = require('../utils/razorpay');
 const { sendSubscriptionConfirmation } = require('../utils/emailService');
+const crypto = require('crypto');
+
+function generateInvoiceNumber(userId) {
+  const ts = Date.now().toString(36).toUpperCase();
+  const uid = userId.toString().slice(-6).toUpperCase();
+  return `INV-${ts}-${uid}`;
+}
 
 async function createSubscription(req, res) {
   let plan;
@@ -76,6 +83,7 @@ async function activateDevPlan(req, res, plan) {
       amount: planConfig.price,
       currency: 'inr',
       status: 'succeeded',
+      invoiceNumber: generateInvoiceNumber(req.user._id),
       paidAt: now,
     });
 
@@ -142,13 +150,15 @@ async function verifyPayment(req, res) {
       postCountResetDate: now,
     });
 
-    await Payment.create({
+    const invoiceNumber = generateInvoiceNumber(req.user._id);
+    const payment = await Payment.create({
       user: req.user._id,
       subscription: sub._id,
       plan,
       amount: planConfig.price,
       currency: 'inr',
       status: 'succeeded',
+      invoiceNumber,
       razorpayPaymentId: razorpay_payment_id,
       razorpayOrderId: razorpay_order_id,
       razorpaySignature: razorpay_signature,
@@ -157,7 +167,7 @@ async function verifyPayment(req, res) {
 
     const user = await User.findById(req.user._id).select('-password');
     try {
-      if (user) await sendSubscriptionConfirmation(user, sub, null);
+      if (user) await sendSubscriptionConfirmation(user, sub, payment);
     } catch (e) {
       console.error('Email send skipped:', e.message);
     }
@@ -346,6 +356,7 @@ async function handleRazorpayWebhook(req, res) {
           postCountResetDate: now,
         });
 
+        const invNum = generateInvoiceNumber(userId);
         await Payment.create({
           user: userId,
           subscription: sub._id,
@@ -353,6 +364,7 @@ async function handleRazorpayWebhook(req, res) {
           amount: planConfig.price,
           currency: 'inr',
           status: 'succeeded',
+          invoiceNumber: invNum,
           razorpayPaymentId: paymentId,
           razorpaySubscriptionId: subscriptionId,
           paidAt: now,
@@ -360,7 +372,7 @@ async function handleRazorpayWebhook(req, res) {
 
         try {
           const user = await User.findById(userId);
-          if (user) await sendSubscriptionConfirmation(user, sub, null);
+          if (user) await sendSubscriptionConfirmation(user, sub, { amount: planConfig.price, invoiceNumber: invNum });
         } catch (e) {
           console.error('Email send skipped:', e.message);
         }
@@ -421,6 +433,7 @@ async function handleRazorpayWebhook(req, res) {
           amount: planConfig.price,
           currency: 'inr',
           status: 'succeeded',
+          invoiceNumber: generateInvoiceNumber(userId),
           razorpayPaymentId: paymentEntity.id,
           paidAt: now,
         };
@@ -430,7 +443,7 @@ async function handleRazorpayWebhook(req, res) {
 
         try {
           const user = await User.findById(userId);
-          if (user) await sendSubscriptionConfirmation(user, sub, null);
+          if (user) await sendSubscriptionConfirmation(user, sub, { amount: planConfig.price, invoiceNumber: paymentData.invoiceNumber });
         } catch (e) {
           console.error('Email send skipped:', e.message);
         }
@@ -496,19 +509,20 @@ async function devActivateSubscription(req, res) {
       postCountResetDate: now,
     });
 
-    await Payment.create({
+    const payment = await Payment.create({
       user: req.user._id,
       subscription: sub._id,
       plan,
       amount: planConfig.price,
       currency: 'inr',
       status: 'succeeded',
+      invoiceNumber: generateInvoiceNumber(req.user._id),
       paidAt: now,
     });
 
     const user = await User.findById(req.user._id).select('-password');
     try {
-      if (user) await sendSubscriptionConfirmation(user, sub, null);
+      if (user) await sendSubscriptionConfirmation(user, sub, payment);
     } catch (e) {
       console.error('Email send skipped (dev mode):', e.message);
     }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { MessageCircle, ArrowLeft, Loader2, Send, AlertCircle, CheckCircle, Crown, Zap } from 'lucide-react';
+import { MessageCircle, ArrowLeft, Loader2, Send, AlertCircle, CheckCircle, Crown, Zap, Clock, Check, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/I18nContext';
 import { supportAPI } from '../utils/api';
@@ -13,12 +13,35 @@ export default function SupportPage() {
   const [success, setSuccess] = useState('');
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tickets, setTickets] = useState([]);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
+  const [ticketsPagination, setTicketsPagination] = useState(null);
+  const [activeTab, setActiveTab] = useState('submit');
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push('/login');
     }
   }, [isAuthenticated, authLoading, router]);
+
+  useEffect(() => {
+    if (activeTab === 'tickets') {
+      fetchTickets();
+    }
+  }, [activeTab]);
+
+  const fetchTickets = async (page = 1) => {
+    setTicketsLoading(true);
+    try {
+      const res = await supportAPI.getMyTickets(page);
+      setTickets(res.data.tickets);
+      setTicketsPagination(res.data.pagination);
+    } catch {
+      setTickets([]);
+    } finally {
+      setTicketsLoading(false);
+    }
+  };
 
   const plan = user?.subscriptionPlan || 'free';
   const isPriority = plan === 'silver' || plan === 'gold';
@@ -93,6 +116,27 @@ export default function SupportPage() {
         </div>
       </div>
 
+      <div className="flex bg-surface-100 rounded-xl p-1">
+        <button
+          className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+            activeTab === 'submit' ? 'bg-white text-surface-900 shadow-sm' : 'text-surface-500 hover:text-surface-700'
+          }`}
+          onClick={() => setActiveTab('submit')}
+        >
+          <Send size={15} className="inline mr-1.5" /> Submit
+        </button>
+        <button
+          className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+            activeTab === 'tickets' ? 'bg-white text-surface-900 shadow-sm' : 'text-surface-500 hover:text-surface-700'
+          }`}
+          onClick={() => setActiveTab('tickets')}
+        >
+          <Clock size={15} className="inline mr-1.5" /> My Tickets
+        </button>
+      </div>
+
+      {activeTab === 'submit' && (
+      <>
       {error && (
         <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm animate-slide-down">
           <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
@@ -167,6 +211,58 @@ export default function SupportPage() {
             : t('support.ratePremium')}
         </p>
       </form>
+      </>
+
+      )}
+
+      {activeTab === 'tickets' && (
+        <div className="card p-6 space-y-4">
+          <h3 className="font-semibold text-surface-900">My Tickets</h3>
+          {ticketsLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 size={24} className="animate-spin text-primary-600" />
+            </div>
+          ) : tickets.length === 0 ? (
+            <div className="text-center py-8">
+              <MessageCircle size={32} className="mx-auto text-surface-300 mb-2" />
+              <p className="text-sm text-surface-400">No tickets submitted yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tickets.map((ticket) => (
+                <div key={ticket._id} className="p-4 rounded-xl bg-surface-50 border border-surface-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-surface-400 uppercase tracking-wide">{ticket.category}</span>
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
+                      ticket.status === 'open'
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    }`}>
+                      {ticket.status === 'open' ? <Clock size={12} /> : <Check size={12} />}
+                      {ticket.status === 'open' ? 'Open' : 'Closed'}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-surface-900">{ticket.subject}</p>
+                  <p className="text-xs text-surface-400 line-clamp-2">{ticket.message}</p>
+                  <p className="text-[11px] text-surface-400">
+                    {new Date(ticket.createdAt).toLocaleDateString(undefined, {
+                      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+              ))}
+              {ticketsPagination?.hasMore && (
+                <button
+                  className="btn-secondary w-full text-sm"
+                  onClick={() => fetchTickets(ticketsPagination.page + 1)}
+                >
+                  Load More
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

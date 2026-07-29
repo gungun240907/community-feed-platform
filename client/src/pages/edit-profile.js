@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/I18nContext';
 import { userAPI } from '../utils/api';
 import api from '../utils/api';
+import PhoneInput from '../components/PhoneInput';
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -154,12 +155,10 @@ export default function EditProfilePage() {
 
         <div>
           <label className="block text-sm font-medium text-surface-700 mb-1.5">{t('editProfile.phone')}</label>
-          <input
-            type="tel"
+          <PhoneInput
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+1234567890"
-            className="input-field text-sm"
+            onChange={(val) => setPhone(val)}
+            placeholder="Enter phone number"
           />
           <p className="text-xs text-surface-400 mt-1">{t('editProfile.phoneHint')}</p>
         </div>

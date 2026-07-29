@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [feedVersion, setFeedVersion] = useState(0);
 
   const loadUser = useCallback(async (storedToken) => {
     try {
@@ -47,6 +48,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('user', JSON.stringify(data.user));
       setUser(data.user);
       setToken(data.token);
+      setFeedVersion((v) => v + 1);
     }
     return data;
   }, []);
@@ -58,6 +60,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     setToken(newToken);
+    setFeedVersion((v) => v + 1);
     return userData;
   }, []);
 
@@ -68,6 +71,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
     setToken(newToken);
+    setFeedVersion((v) => v + 1);
     return userData;
   }, []);
 
@@ -101,6 +105,7 @@ export function AuthProvider({ children }) {
     token,
     isLoading,
     isAuthenticated: !!user,
+    feedVersion,
     login,
     verifyLoginOtp,
     register,

@@ -41,4 +41,34 @@ async function submitSupportTicket(req, res, next) {
   }
 }
 
-module.exports = { submitSupportTicket };
+async function getMyTickets(req, res, next) {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    const [tickets, total] = await Promise.all([
+      SupportTicket.find({ user: req.user._id })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      SupportTicket.countDocuments({ user: req.user._id }),
+    ]);
+
+    res.json({
+      tickets,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + tickets.length < total,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { submitSupportTicket, getMyTickets };

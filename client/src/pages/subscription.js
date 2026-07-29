@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '../context/I18nContext';
 import { useRouter } from 'next/router';
-import { Loader2, CreditCard, Calendar, ArrowLeft, Download, Ban, RefreshCw, CheckCircle, XCircle, Crown, Zap, Sparkles } from 'lucide-react';
+import { Loader2, CreditCard, Calendar, ArrowLeft, Download, Ban, RefreshCw, CheckCircle, XCircle, Crown, Zap, Sparkles, FileText } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { subscriptionAPI } from '../utils/api';
 import ProfileBadge from '../components/ProfileBadge';
@@ -60,6 +60,48 @@ export default function SubscriptionPage() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleDownloadInvoice = (payment) => {
+    const win = window.open('', '_blank');
+    const planLabel = payment.plan.charAt(0).toUpperCase() + payment.plan.slice(1);
+    win.document.write(`
+      <html><head><title>Invoice ${payment.invoiceNumber || payment._id.slice(-8)}</title>
+      <style>
+        body { font-family: -apple-system, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; color: #1f2937; }
+        .header { border-bottom: 2px solid #6366f1; padding-bottom: 20px; margin-bottom: 30px; }
+        .header h1 { color: #6366f1; margin: 0; font-size: 28px; }
+        .header p { color: #6b7280; margin: 4px 0 0; }
+        .details { margin-bottom: 30px; }
+        .details table { width: 100%; border-collapse: collapse; }
+        .details td { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+        .details td:last-child { text-align: right; font-weight: 600; }
+        .total { font-size: 18px; margin-top: 20px; text-align: right; border-top: 2px solid #1f2937; padding-top: 12px; }
+        .footer { margin-top: 40px; color: #9ca3af; font-size: 12px; text-align: center; border-top: 1px solid #e5e7eb; padding-top: 20px; }
+        @media print { body { margin: 20px; } .no-print { display: none; } }
+        .no-print { text-align: center; margin-bottom: 30px; }
+        .no-print button { background: #6366f1; color: white; border: 0; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+      </style></head><body>
+      <div class="no-print"><button onclick="window.print()">Print / Save as PDF</button></div>
+      <div class="header">
+        <h1>DevFeed</h1>
+        <p>Invoice #${payment.invoiceNumber || payment._id.slice(-8).toUpperCase()}</p>
+      </div>
+      <div class="details">
+        <table>
+          <tr><td>Invoice Date</td><td>${new Date(payment.paidAt || payment.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td></tr>
+          <tr><td>Plan</td><td>${planLabel}</td></tr>
+          <tr><td>Amount</td><td>₹${payment.amount}</td></tr>
+          <tr><td>Status</td><td style="color:#059669">Paid</td></tr>
+          <tr><td>Payment ID</td><td style="font-family:monospace;font-size:13px">${payment.razorpayPaymentId || 'N/A'}</td></tr>
+        </table>
+      </div>
+      <div class="total">Total: ₹${payment.amount}</div>
+      <div class="footer">DevFeed Community Platform &mdash; Thank you for your support!</div>
+      <script>window.onload = function() { setTimeout(function() { window.print(); }, 500); }; </script>
+      </body></html>
+    `);
+    win.document.close();
   };
 
   const handleReactivate = async () => {
@@ -228,11 +270,14 @@ export default function SubscriptionPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-sm text-surface-900">₹{payment.amount}</span>
-                  {payment.razorpayPaymentId && (
-                    <span className="text-xs text-surface-400 font-mono" title={`Payment ID: ${payment.razorpayPaymentId}`}>
-                      ID: {payment.razorpayPaymentId.slice(-8)}
-                    </span>
-                  )}
+                  <button
+                    onClick={() => handleDownloadInvoice(payment)}
+                    className="touch-btn text-xs text-primary-500 hover:text-primary-700 flex items-center gap-1"
+                    title={payment.invoiceNumber ? `Invoice ${payment.invoiceNumber}` : 'Download Invoice'}
+                  >
+                    <FileText size={14} />
+                    <span className="hidden sm:inline">Invoice</span>
+                  </button>
                 </div>
               </div>
             ))}
