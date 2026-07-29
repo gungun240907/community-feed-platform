@@ -127,6 +127,7 @@ let mongod = null;
 let dbReady = false;
 
 async function connectDB() {
+  mongoose.set('bufferTimeoutMS', 30000);
   if (MONGO_URI) {
     await mongoose.connect(MONGO_URI, {
       serverSelectionTimeoutMS: 10000,
@@ -146,8 +147,24 @@ async function connectDB() {
   dbReady = true;
 }
 
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB runtime connection error:', err);
+  dbReady = false;
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('MongoDB disconnected');
+  dbReady = false;
+});
+
+mongoose.connection.on('reconnected', () => {
+  console.log('MongoDB reconnected');
+  dbReady = true;
+});
+
 const dbPromise = connectDB().catch((err) => {
   console.error('MongoDB connection error:', err);
+  throw err;
 });
 
 if (require.main === module) {

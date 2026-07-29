@@ -227,7 +227,7 @@ const PostCard = memo(function PostCard({ post, onUpdate, onDelete }) {
               <img
                 src={url}
                 alt={`Media ${index + 1}`}
-                className="w-full h-48 sm:h-64 object-cover hover:scale-105 transition-transform duration-300"
+                className="w-full max-h-[500px] object-contain bg-surface-100 rounded-xl"
                 loading="lazy"
                 onError={(e) => { e.target.style.display = 'none'; }}
               />
@@ -321,7 +321,7 @@ const PostCard = memo(function PostCard({ post, onUpdate, onDelete }) {
               <div className="flex flex-wrap gap-2">
                 {editMediaUrls.map((url, i) => (
                   <div key={i} className="relative group">
-                    <img src={url} alt="" className="h-20 w-20 object-cover rounded-xl border border-surface-200" onError={(e) => { e.target.style.display = 'none'; }} />
+                    <img src={url} alt="" className="h-20 w-20 object-contain rounded-xl border border-surface-200 bg-surface-100" onError={(e) => { e.target.style.display = 'none'; }} />
                     <button type="button" className="absolute -top-2.5 -right-2.5 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600" onClick={() => setEditMediaUrls((prev) => prev.filter((_, j) => j !== i))}>
                       <X size={12} />
                     </button>

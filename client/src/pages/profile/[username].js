@@ -67,31 +67,31 @@ export default function ProfilePage() {
   }, [username]);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !isOwnProfile) return;
     setPrivilegesLoading(true);
     reputationAPI.getPrivileges(profile._id)
       .then((res) => setPrivileges(res.data))
       .catch(() => {})
       .finally(() => setPrivilegesLoading(false));
-  }, [profile]);
+  }, [profile, isOwnProfile]);
 
   useEffect(() => {
-    if (!profile || activeTab !== 'reputation') return;
+    if (!profile || activeTab !== 'reputation' || !isOwnProfile) return;
     setRepLoading(true);
     reputationAPI.getHistory(profile._id, 1)
       .then((res) => { setRepLogs(res.data.logs); setRepPage(1); setRepHasMore(res.data.pagination.hasMore); })
       .catch(() => {})
       .finally(() => setRepLoading(false));
-  }, [profile, activeTab]);
+  }, [profile, activeTab, isOwnProfile]);
 
   useEffect(() => {
-    if (!profile || activeTab !== 'transfers') return;
+    if (!profile || activeTab !== 'transfers' || !isOwnProfile) return;
     setTransfersLoading(true);
     reputationAPI.getTransfers(profile._id, 1)
       .then((res) => { setTransfers(res.data.transfers); setTransfersPage(1); setTransfersHasMore(res.data.pagination.hasMore); })
       .catch(() => {})
       .finally(() => setTransfersLoading(false));
-  }, [profile, activeTab]);
+  }, [profile, activeTab, isOwnProfile]);
 
   const fetchPosts = useCallback(async (pageNum = 1) => {
     if (!username) return;
@@ -229,9 +229,11 @@ export default function ProfilePage() {
 
   const tabs = [
     { key: 'posts', label: t('profile.posts'), count: posts.length },
-    { key: 'reputation', label: t('profile.reputationTab') },
-    { key: 'transfers', label: t('profile.transfersTab') },
-    { key: 'privileges', label: t('profile.privilegesTab') },
+    ...(isOwnProfile ? [
+      { key: 'reputation', label: t('profile.reputationTab') },
+      { key: 'transfers', label: t('profile.transfersTab') },
+      { key: 'privileges', label: t('profile.privilegesTab') },
+    ] : []),
   ];
 
   return (

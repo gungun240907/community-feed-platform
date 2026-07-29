@@ -56,6 +56,7 @@ export default function SupportPage() {
       const res = await supportAPI.submit(form);
       setSuccess(res.data.message);
       setForm({ subject: '', category: 'bug', message: '' });
+      fetchTickets();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to submit support ticket. Please try again.');
     } finally {
