@@ -1,18 +1,33 @@
-import React, { useState } from 'react';
-import { X, Loader2, Send, AlertCircle, CheckCircle, Mail, Phone } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Loader2, Send, AlertCircle, CheckCircle, Mail, Phone, Wifi } from 'lucide-react';
 import { languageAPI } from '../utils/api';
 import { useTranslation } from '../context/I18nContext';
+import { useOtp } from '../context/OtpContext';
 
 const LANG_LABELS = { en: 'English', es: 'Spanish', hi: 'Hindi', pt: 'Portuguese', zh: 'Chinese', fr: 'French' };
 
 export default function LanguageVerifyModal({ targetLang, onClose, onVerified }) {
   const { t } = useTranslation();
+  const { subscribe } = useOtp();
   const [step, setStep] = useState('request');
   const [otp, setOtp] = useState('');
   const [otpType, setOtpType] = useState(null);
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [otpReceivedViaSocket, setOtpReceivedViaSocket] = useState(false);
+
+  useEffect(() => {
+    if (step !== 'verify') return;
+    const unsub = subscribe('lang-verify', (data) => {
+      if (data.purpose === 'language_switch' && data.code) {
+        setOtp(data.code);
+        setOtpReceivedViaSocket(true);
+        setTimeout(() => setOtpReceivedViaSocket(false), 3000);
+      }
+    });
+    return unsub;
+  }, [step, subscribe]);
 
   const handleRequest = async () => {
     setSending(true);
@@ -88,15 +103,23 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
 
             <div>
               <label className="block text-sm font-medium text-surface-700 mb-1.5">{t('language.verify.otp')}</label>
-              <input
-                type="text"
-                className="input-field text-center text-lg tracking-[8px]"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder={t('language.verify.otpPlaceholder')}
-                maxLength={6}
-                autoFocus
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  className="input-field text-center text-lg tracking-[8px]"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder={t('language.verify.otpPlaceholder')}
+                  maxLength={6}
+                  autoFocus
+                />
+                {otpReceivedViaSocket && (
+                  <div className="absolute -top-2 right-2 flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full border border-emerald-200 animate-slide-down">
+                    <Wifi size={12} />
+                    Real-time
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-3">

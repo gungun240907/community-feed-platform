@@ -36,6 +36,12 @@ export default function useSocket(token, handlers = {}) {
       }
     });
 
+    socket.on('otp', (data) => {
+      if (handlersRef.current.onOtp) {
+        handlersRef.current.onOtp(data);
+      }
+    });
+
     socket.on('likeToggled', (data) => {
       if (handlersRef.current.onLikeToggled) {
         handlersRef.current.onLikeToggled(data);

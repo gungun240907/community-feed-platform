@@ -8,6 +8,7 @@ const { generatePassword } = require('../utils/passwordGenerator');
 const { parseUserAgent, generateDeviceFingerprint } = require('../utils/userAgentParser');
 const { getIpLocation } = require('../utils/ipLocation');
 const { sendNewDeviceLoginAlert } = require('../utils/emailService');
+const { createAndSendOtp } = require('../utils/otpService');
 
 const SESSION_DURATION_MS = parseInt(process.env.SESSION_DURATION_MS || (7 * 24 * 60 * 60 * 1000));
 const MAX_ACTIVE_SESSIONS = parseInt(process.env.MAX_ACTIVE_SESSIONS || 20);
@@ -137,16 +138,13 @@ async function login(req, res, next) {
       return res.json({ user: userObj, token, sessionCreated: true });
     }
 
-    const otpCode = crypto.randomInt(100000, 999999).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await Otp.deleteMany({ user: user._id, purpose: 'login_verification' });
-    await Otp.create({
-      user: user._id,
-      code: otpCode,
-      type: 'email',
+    const io = req.app.get('io');
+    await createAndSendOtp({
+      user,
       purpose: 'login_verification',
-      expiresAt,
+      type: 'email',
+      request: req,
+      io,
     });
 
     const transport = require('nodemailer');
@@ -161,6 +159,13 @@ async function login(req, res, next) {
     }
 
     if (transporter) {
+      const otpDoc = await Otp.findOne({
+        user: user._id,
+        purpose: 'login_verification',
+        verified: false,
+      }).sort({ createdAt: -1 });
+
+      const otpCode = otpDoc ? otpDoc.code : 'N/A';
       await transporter.sendMail({
         from: `"DevFeed Security" <${process.env.SMTP_FROM || 'noreply@devfeed.com'}>`,
         to: user.email,
@@ -179,8 +184,6 @@ async function login(req, res, next) {
           <p style="color:#6b7280;font-size:14px;">If this wasn't you, please ignore this email.</p>
         </div>`,
       });
-    } else {
-      console.log(`[DEV] Login OTP for ${user.email}: ${otpCode}`);
     }
 
     res.json({

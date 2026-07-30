@@ -19,6 +19,7 @@ const languageRoutes = require('./routes/language');
 const webhookRoutes = require('./routes/webhook');
 const sessionRoutes = require('./routes/sessions');
 const loginLogRoutes = require('./routes/loginLogs');
+const otpRoutes = require('./routes/otp');
 
 const app = express();
 const server = http.createServer(app);
@@ -70,6 +71,7 @@ app.use('/api/reputation', reputationRoutes);
 app.use('/api/language', languageRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/login-logs', loginLogRoutes);
+app.use('/api/otp', otpRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

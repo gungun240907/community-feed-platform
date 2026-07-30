@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { LogIn, Loader2, Eye, EyeOff, ArrowLeft, Shield, Smartphone, Monitor, Globe, CheckCircle, X } from 'lucide-react';
+import { LogIn, Loader2, Eye, EyeOff, ArrowLeft, Shield, Smartphone, Monitor, Globe, Wifi, CheckCircle, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/I18nContext';
+import { useOtp } from '../context/OtpContext';
 
 export default function LoginPage() {
   const router = useRouter();
   const { t } = useTranslation();
   const { login, verifyLoginOtp, isAuthenticated } = useAuth();
+  const { pendingOtp, subscribe } = useOtp();
   const [form, setForm] = useState({ login: '', password: '' });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,10 +21,23 @@ export default function LoginPage() {
   const [otpSubmitting, setOtpSubmitting] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState(null);
   const [trustDevice, setTrustDevice] = useState(false);
+  const [otpReceivedViaSocket, setOtpReceivedViaSocket] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) router.push('/');
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!requiresOtp) return;
+    const unsub = subscribe('login-page', (data) => {
+      if (data.purpose === 'login_verification' && data.code) {
+        setOtp(data.code);
+        setOtpReceivedViaSocket(true);
+        setTimeout(() => setOtpReceivedViaSocket(false), 3000);
+      }
+    });
+    return unsub;
+  }, [requiresOtp, subscribe]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -125,16 +140,24 @@ export default function LoginPage() {
             <form onSubmit={handleOtpSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="block text-sm font-medium text-surface-700">{t('auth.login.otpLabel')}</label>
-                <input
-                  type="text"
-                  className="input-field text-center text-lg tracking-[8px]"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  maxLength={6}
-                  autoFocus
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    className="input-field text-center text-lg tracking-[8px]"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    maxLength={6}
+                    autoFocus
+                    required
+                  />
+                  {otpReceivedViaSocket && (
+                    <div className="absolute -top-2 right-2 flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full border border-emerald-200 animate-slide-down">
+                      <Wifi size={12} />
+                      Real-time
+                    </div>
+                  )}
+                </div>
               </div>
 
               <label className="flex items-center gap-2.5 cursor-pointer group">
