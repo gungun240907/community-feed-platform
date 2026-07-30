@@ -8,6 +8,7 @@ const { generatePassword } = require('../utils/passwordGenerator');
 const { parseUserAgent, generateDeviceFingerprint } = require('../utils/userAgentParser');
 const { getIpLocation } = require('../utils/ipLocation');
 const { sendNewDeviceLoginAlert } = require('../utils/emailService');
+const { createAndSendOtp } = require('../utils/otpService');
 
 const SESSION_DURATION_MS = parseInt(process.env.SESSION_DURATION_MS || (7 * 24 * 60 * 60 * 1000));
 const MAX_ACTIVE_SESSIONS = parseInt(process.env.MAX_ACTIVE_SESSIONS || 20);
@@ -64,13 +65,15 @@ async function register(req, res, next) {
 
 async function login(req, res, next) {
   try {
-    const { email, password } = req.body;
+    const { login, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!login || !password) {
+      return res.status(400).json({ error: 'Username/email and password are required' });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({
+      $or: [{ email: login.toLowerCase().trim() }, { username: login.toLowerCase().trim() }],
+    }).select('+password');
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -135,16 +138,13 @@ async function login(req, res, next) {
       return res.json({ user: userObj, token, sessionCreated: true });
     }
 
-    const otpCode = crypto.randomInt(100000, 999999).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-    await Otp.deleteMany({ user: user._id, purpose: 'login_verification' });
-    await Otp.create({
-      user: user._id,
-      code: otpCode,
-      type: 'email',
+    const io = req.app.get('io');
+    await createAndSendOtp({
+      user,
       purpose: 'login_verification',
-      expiresAt,
+      type: 'email',
+      request: req,
+      io,
     });
 
     const transport = require('nodemailer');
@@ -159,6 +159,13 @@ async function login(req, res, next) {
     }
 
     if (transporter) {
+      const otpDoc = await Otp.findOne({
+        user: user._id,
+        purpose: 'login_verification',
+        verified: false,
+      }).sort({ createdAt: -1 });
+
+      const otpCode = otpDoc ? otpDoc.code : 'N/A';
       await transporter.sendMail({
         from: `"DevFeed Security" <${process.env.SMTP_FROM || 'noreply@devfeed.com'}>`,
         to: user.email,
@@ -177,8 +184,6 @@ async function login(req, res, next) {
           <p style="color:#6b7280;font-size:14px;">If this wasn't you, please ignore this email.</p>
         </div>`,
       });
-    } else {
-      console.log(`[DEV] Login OTP for ${user.email}: ${otpCode}`);
     }
 
     res.json({
@@ -199,13 +204,15 @@ async function login(req, res, next) {
 
 async function verifyLoginOtp(req, res, next) {
   try {
-    const { email, password, otp, trustDevice } = req.body;
+    const { login, password, otp, trustDevice } = req.body;
 
-    if (!email || !password || !otp) {
-      return res.status(400).json({ error: 'Email, password, and OTP are required' });
+    if (!login || !password || !otp) {
+      return res.status(400).json({ error: 'Username/email, password, and OTP are required' });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({
+      $or: [{ email: login.toLowerCase().trim() }, { username: login.toLowerCase().trim() }],
+    }).select('+password');
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -332,10 +339,12 @@ async function forgotPassword(req, res, next) {
     const now = new Date();
     if (user.lastPasswordResetRequest) {
       const lastRequest = new Date(user.lastPasswordResetRequest);
-      const diffInMs = now - lastRequest;
-      const hoursSinceLastRequest = diffInMs / (1000 * 60 * 60);
+      const isSameDay =
+        lastRequest.getFullYear() === now.getFullYear() &&
+        lastRequest.getMonth() === now.getMonth() &&
+        lastRequest.getDate() === now.getDate();
 
-      if (hoursSinceLastRequest < 24) {
+      if (isSameDay) {
         return res.status(429).json({
           error: 'You can use this option only one time per day.',
         });

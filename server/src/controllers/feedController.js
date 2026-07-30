@@ -11,7 +11,11 @@ async function getPersonalizedFeed(req, res, next) {
 
     const hashtag = req.query.hashtag;
 
-    let filter = { isDeleted: false };
+    const following = await Follower.find({ follower: req.user._id }).select('following -_id').lean();
+    const followingIds = following.map(f => f.following);
+    followingIds.push(req.user._id);
+
+    let filter = { isDeleted: false, author: { $in: followingIds } };
 
     if (hashtag) {
       filter.hashtags = hashtag.toLowerCase();
@@ -26,6 +30,27 @@ async function getPersonalizedFeed(req, res, next) {
         .lean(),
       Post.countDocuments(filter),
     ]);
+
+    if (posts.length === 0 && !hashtag) {
+      const [fallbackPosts, fallbackTotal] = await Promise.all([
+        Post.find({ isDeleted: false })
+          .populate('author', 'username displayName avatar')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        Post.countDocuments({ isDeleted: false }),
+      ]);
+      const enriched = await enrichPostsWithUserState(fallbackPosts, req.user);
+      return res.json({
+        posts: enriched,
+        pagination: {
+          page, limit, total: fallbackTotal,
+          totalPages: Math.ceil(fallbackTotal / limit),
+          hasMore: skip + fallbackPosts.length < fallbackTotal,
+        },
+      });
+    }
 
     const enriched = await enrichPostsWithUserState(posts, req.user);
 
