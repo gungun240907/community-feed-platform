@@ -26,7 +26,13 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: (origin, cb) => {
+      if (!origin || origin.startsWith('http://localhost') || origin.endsWith('.vercel.app')) {
+        cb(null, true);
+      } else {
+        cb(null, false);
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
   },
 });
@@ -36,8 +42,15 @@ app.set('io', io);
 // Webhook route must be before global express.json() to preserve raw body for Razorpay signature verification
 app.use('/api/webhook', webhookRoutes);
 
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000').split(',').map(s => s.trim());
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://localhost') || origin.endsWith('.vercel.app')) {
+      cb(null, true);
+    } else {
+      cb(null, false);
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 }));
@@ -133,8 +146,9 @@ async function connectDB() {
   mongoose.set('bufferTimeoutMS', 30000);
   if (MONGO_URI) {
     await mongoose.connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 10000,
-      connectTimeoutMS: 15000,
+      serverSelectionTimeoutMS: 60000,
+      connectTimeoutMS: 60000,
+      socketTimeoutMS: 60000,
     });
     console.log('Connected to MongoDB');
   } else {
