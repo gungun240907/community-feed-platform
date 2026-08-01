@@ -9,6 +9,8 @@ const { addReputation } = require('../utils/reputationHelper');
 
 const POPULATE_AUTHOR = 'username displayName avatar';
 
+const CLOSE_VOTE_THRESHOLD = 3;
+
 async function createPost(req, res, next) {
   try {
     const { content, mediaUrls, postType } = req.body;
@@ -36,16 +38,18 @@ async function createPost(req, res, next) {
 
     const populated = await post.populate('author', POPULATE_AUTHOR);
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    if (type === 'question') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    const userDoc = await User.findById(req.user._id).select('postCount postCountResetDate');
-    const needsReset = !userDoc.postCountResetDate || userDoc.postCountResetDate < today;
+      const userDoc = await User.findById(req.user._id).select('postCount postCountResetDate');
+      const needsReset = !userDoc.postCountResetDate || userDoc.postCountResetDate < today;
 
-    if (needsReset) {
-      await User.findByIdAndUpdate(req.user._id, { $set: { postCount: 1, postCountResetDate: today } });
-    } else {
-      await User.findByIdAndUpdate(req.user._id, { $inc: { postCount: 1 } });
+      if (needsReset) {
+        await User.findByIdAndUpdate(req.user._id, { $set: { postCount: 1, postCountResetDate: today } });
+      } else {
+        await User.findByIdAndUpdate(req.user._id, { $inc: { postCount: 1 } });
+      }
     }
 
     const io = req.app.get('io');
@@ -117,7 +121,9 @@ async function updatePost(req, res, next) {
     }
 
     if (post.author.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'You can only edit your own posts' });
+      if (req.user.reputation < 100) {
+        return res.status(403).json({ error: 'You can only edit your own posts. Editing community posts requires 100 reputation.' });
+      }
     }
 
     if (content) {
@@ -269,6 +275,11 @@ async function toggleDownvote(req, res, next) {
       await Like.deleteOne({ _id: existing._id });
       const newCount = Math.max(0, (post.downvoteCount || 0) - 1);
       await Post.findByIdAndUpdate(post._id, { $set: { downvoteCount: newCount } });
+
+      if (post.author.toString() !== req.user._id.toString()) {
+        await addReputation(post.author, 'downvote_reverted', 'post', post._id);
+      }
+
       res.json({ downvoted: false, downvoteCount: newCount });
     } else {
       await Like.create({ user: req.user._id, post: post._id, type: 'downvote' });
@@ -307,10 +318,19 @@ async function acceptAnswer(req, res, next) {
       return res.status(404).json({ error: 'Answer not found' });
     }
 
+    if (question.acceptedAnswer) {
+      if (question.acceptedAnswer.toString() === answer._id.toString()) {
+        return res.status(400).json({ error: 'This answer is already marked as accepted' });
+      }
+    }
+
+    const wasAccepted = question.acceptedAnswer;
     question.acceptedAnswer = answer._id;
     await question.save();
 
-    await addReputation(answer.author, 'accepted_answer', 'post', answer._id);
+    if (!wasAccepted || wasAccepted.toString() !== answer._id.toString()) {
+      await addReputation(answer.author, 'accepted_answer', 'post', answer._id);
+    }
 
     res.json({ message: 'Answer accepted', acceptedAnswer: answer._id });
   } catch (error) {
@@ -400,6 +420,18 @@ async function createComment(req, res, next) {
     const post = await Post.findOne({ _id: req.params.id, isDeleted: false });
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const DAILY_COMMENT_LIMIT = 3;
+    if (req.user.reputation < 50) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayComments = await Comment.countDocuments({ author: req.user._id, createdAt: { $gte: today } });
+      if (todayComments >= DAILY_COMMENT_LIMIT) {
+        return res.status(429).json({
+          error: `Commenting is limited to ${DAILY_COMMENT_LIMIT} per day below 50 reputation. Reach 50 reputation for unrestricted commenting.`,
+        });
+      }
     }
 
     let depth = 0;
@@ -495,6 +527,47 @@ async function deleteComment(req, res, next) {
   }
 }
 
+async function toggleCloseVote(req, res, next) {
+  try {
+    if (req.user.reputation < 250) {
+      return res.status(403).json({ error: 'Voting to close questions requires 250 reputation.' });
+    }
+
+    const post = await Post.findOne({ _id: req.params.id, postType: 'question', isDeleted: false });
+    if (!post) {
+      return res.status(404).json({ error: 'Question not found' });
+    }
+
+    if (post.author.toString() === req.user._id.toString()) {
+      return res.status(400).json({ error: 'You cannot vote to close your own question' });
+    }
+
+    const existing = await Like.findOne({
+      user: req.user._id,
+      post: post._id,
+      type: 'close_vote',
+    });
+
+    if (existing) {
+      await Like.deleteOne({ _id: existing._id });
+      const newCount = Math.max(0, (post.closeVotes || 0) - 1);
+      await Post.findByIdAndUpdate(post._id, {
+        $set: { closeVotes: newCount, isClosed: newCount >= CLOSE_VOTE_THRESHOLD },
+      });
+      res.json({ closed: newCount >= CLOSE_VOTE_THRESHOLD, closeVotes: newCount });
+    } else {
+      await Like.create({ user: req.user._id, post: post._id, type: 'close_vote' });
+      const newCount = (post.closeVotes || 0) + 1;
+      await Post.findByIdAndUpdate(post._id, {
+        $set: { closeVotes: newCount, isClosed: newCount >= CLOSE_VOTE_THRESHOLD },
+      });
+      res.json({ closed: newCount >= CLOSE_VOTE_THRESHOLD, closeVotes: newCount });
+    }
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   createPost,
   getPost,
@@ -508,4 +581,5 @@ module.exports = {
   createComment,
   deleteComment,
   sharePost,
+  toggleCloseVote,
 };

@@ -42,7 +42,7 @@ export const feedAPI = {
     if (hashtag) params.hashtag = hashtag;
     return api.get('/feed/personalized', { params });
   },
-  getTrending: (limit = 20) => api.get('/feed/trending', { params: { limit } }),
+  getTrending: (page = 1, limit = 20) => api.get('/feed/trending', { params: { page, limit } }),
 };
 
 export const postAPI = {
@@ -52,6 +52,8 @@ export const postAPI = {
   delete: (id) => api.delete(`/posts/${id}`),
   toggleLike: (id) => api.post(`/posts/${id}/like`),
   toggleBookmark: (id) => api.post(`/posts/${id}/bookmark`),
+  acceptAnswer: (id, answerId) => api.post(`/posts/${id}/accept-answer`, { answerId }),
+  closeVote: (id) => api.post(`/posts/${id}/close-vote`),
   share: (id) => api.post(`/posts/${id}/share`),
   getComments: (id, page = 1, limit = 10) =>
     api.get(`/posts/${id}/comments`, { params: { page, limit } }),

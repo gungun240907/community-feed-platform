@@ -66,6 +66,14 @@ const postSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    closeVotes: {
+      type: Number,
+      default: 0,
+    },
+    isClosed: {
+      type: Boolean,
+      default: false,
+    },
     isReported: {
       type: Boolean,
       default: false,

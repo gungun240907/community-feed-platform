@@ -59,12 +59,13 @@ async function sendSubscriptionConfirmation(user, subscription, payment) {
                 <td style="padding: 8px 0; font-weight: 600; color: #1f2937;">${subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'N/A'}</td>
               </tr>
             </table>
-            ${payment?.invoiceNumber ? `
-            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
-              <h3 style="color: #1f2937; font-size: 16px;">Invoice</h3>
-              <p style="color: #4b5563; font-size: 14px;">Invoice #: <strong>${payment.invoiceNumber}</strong></p>
-            </div>
-            ` : `
+              ${payment?.invoiceNumber ? `
+              <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+                <h3 style="color: #1f2937; font-size: 16px;">Invoice</h3>
+                <p style="color: #4b5563; font-size: 14px;">Invoice #: <strong>${payment.invoiceNumber}</strong></p>
+                <p style="color: #4b5563; font-size: 14px; margin-top: 8px;"><a href="${process.env.CLIENT_URL || 'http://localhost:3000'}/subscription" style="color: #6366f1; font-weight: 600;">Download invoice from your dashboard</a></p>
+              </div>
+              ` : `
             <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
               <h3 style="color: #1f2937; font-size: 16px;">Invoice</h3>
               <p style="color: #4b5563; font-size: 14px;">Your invoice has been generated and is available in your subscription dashboard.</p>
@@ -198,4 +199,72 @@ async function sendNewDeviceLoginAlert(user, deviceInfo) {
   }
 }
 
-module.exports = { sendSubscriptionConfirmation, sendSupportEmail, sendNewDeviceLoginAlert };
+async function sendOtpEmail({ user, otp, purpose }) {
+  const transport = getTransporter();
+  if (!transport) {
+    console.log('Email service not configured. Skipping OTP email.');
+    console.log(`OTP for ${user.email} (${purpose}): ${otp}`);
+    return false;
+  }
+
+  const purposeLabel = {
+    login_verification: 'login verification',
+    language_switch: 'language change',
+    email_verification: 'email verification',
+    phone_verification: 'phone verification',
+    password_reset: 'password reset',
+  }[purpose] || purpose;
+
+  try {
+    await transport.sendMail({
+      from: `"DevFeed Security" <${process.env.SMTP_FROM || 'noreply@devfeed.com'}>`,
+      to: user.email,
+      subject: `Your ${purposeLabel} code for DevFeed`,
+      html: `
+        <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; text-align: center;">
+          <h2 style="color: #1f2937;">${purposeLabel === 'language change' ? 'Language Change' : 'Verification'} Code</h2>
+          <p style="color: #6b7280;">Use the code below to continue. It expires in 10 minutes.</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 16px 0;">${otp}</div>
+          <p style="color: #9ca3af; font-size: 12px;">If you didn't request this, you can safely ignore this email.</p>
+        </div>
+      `,
+    });
+    console.log(`OTP email sent to ${user.email} for ${purpose}`);
+    return true;
+  } catch (err) {
+    console.error('Failed to send OTP email:', err.message);
+    return false;
+  }
+}
+
+async function sendPasswordResetEmail(user, newPassword) {
+  const transport = getTransporter();
+  if (!transport) {
+    console.log('Email service not configured. Skipping password reset email.');
+    console.log(`New password for ${user.email}: ${newPassword}`);
+    return false;
+  }
+
+  try {
+    await transport.sendMail({
+      from: `"DevFeed Security" <${process.env.SMTP_FROM || 'noreply@devfeed.com'}>`,
+      to: user.email,
+      subject: 'Your DevFeed password has been reset',
+      html: `
+        <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; text-align: center;">
+          <h2 style="color: #1f2937;">Password Reset</h2>
+          <p style="color: #6b7280;">Your password has been reset as requested. Use the temporary password below to sign in, then change it from your profile.</p>
+          <div style="font-size: 24px; font-weight: bold; letter-spacing: 4px; background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 16px 0;">${newPassword}</div>
+          <p style="color: #9ca3af; font-size: 12px;">For your security, this password is shown only in this email. If you didn't request a reset, please contact support immediately.</p>
+        </div>
+      `,
+    });
+    console.log(`Password reset email sent to ${user.email}`);
+    return true;
+  } catch (err) {
+    console.error('Failed to send password reset email:', err.message);
+    return false;
+  }
+}
+
+module.exports = { sendSubscriptionConfirmation, sendSupportEmail, sendNewDeviceLoginAlert, sendOtpEmail, sendPasswordResetEmail };

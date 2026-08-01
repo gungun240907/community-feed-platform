@@ -9,12 +9,14 @@ const {
   cancelSubscription,
   reactivateSubscription,
   devActivateSubscription,
+  downloadInvoice,
 } = require('../controllers/subscriptionController');
 
 router.post('/create-subscription', authenticate, createSubscription);
 router.post('/verify-payment', authenticate, verifyPayment);
 router.get('/status', authenticate, getSubscriptionStatus);
 router.get('/payments', authenticate, getPaymentHistory);
+router.get('/payments/:id/invoice', authenticate, downloadInvoice);
 router.post('/cancel', authenticate, cancelSubscription);
 router.post('/reactivate', authenticate, reactivateSubscription);
 router.post('/dev-activate', authenticate, devActivateSubscription);

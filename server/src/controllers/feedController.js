@@ -24,7 +24,7 @@ async function getPersonalizedFeed(req, res, next) {
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate('author', 'username displayName avatar')
-        .sort({ updatedAt: -1 })
+        .sort({ updatedAt: -1, _id: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -35,7 +35,7 @@ async function getPersonalizedFeed(req, res, next) {
       const [fallbackPosts, fallbackTotal] = await Promise.all([
         Post.find({ isDeleted: false })
           .populate('author', 'username displayName avatar')
-          .sort({ createdAt: -1 })
+          .sort({ createdAt: -1, _id: -1 })
           .skip(skip)
           .limit(limit)
           .lean(),
@@ -71,12 +71,14 @@ async function getPersonalizedFeed(req, res, next) {
 
 async function getTrendingFeed(req, res, next) {
   try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
 
     let posts = await Post.find({ isDeleted: false })
       .populate('author', 'username displayName avatar featuredProfile')
       .sort({ updatedAt: -1 })
-      .limit(200)
+      .limit(500)
       .lean();
 
     const scored = calculateBulkScores(posts);
@@ -85,12 +87,24 @@ async function getTrendingFeed(req, res, next) {
         post.engagementScore *= 1.2;
       }
     });
-    scored.sort((a, b) => b.engagementScore - a.engagementScore);
+    scored.sort((a, b) => {
+      if (b.engagementScore !== a.engagementScore) return b.engagementScore - a.engagementScore;
+      return String(b._id).localeCompare(String(a._id));
+    });
 
-    const topPosts = scored.slice(0, limit);
+    const topPosts = scored.slice(skip, skip + limit);
     const enriched = await enrichPostsWithUserState(topPosts, req.user);
 
-    res.json({ posts: enriched });
+    res.json({
+      posts: enriched,
+      pagination: {
+        page,
+        limit,
+        total: scored.length,
+        totalPages: Math.ceil(scored.length / limit),
+        hasMore: skip + topPosts.length < scored.length,
+      },
+    });
   } catch (error) {
     next(error);
   }

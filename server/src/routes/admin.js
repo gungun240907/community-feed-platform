@@ -12,6 +12,7 @@ const {
 } = require('../controllers/adminController');
 const { createReport } = require('../controllers/reportController');
 const { getAllLoginLogs } = require('../controllers/loginLogController');
+const { requireReputation } = require('../middleware/reputation');
 
 router.use(authenticate);
 
@@ -23,6 +24,6 @@ router.put('/users/:userId/unsuspend', requireAdmin, unsuspendUser);
 router.get('/stats', requireAdmin, getDashboardStats);
 router.get('/login-logs', requireAdmin, getAllLoginLogs);
 
-router.post('/posts/:id/report', createReport);
+router.post('/posts/:id/report', requireReputation(500), createReport);
 
 module.exports = router;

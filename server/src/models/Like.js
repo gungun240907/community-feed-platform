@@ -14,7 +14,7 @@ const likeSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['like', 'bookmark', 'upvote', 'downvote'],
+      enum: ['like', 'bookmark', 'upvote', 'downvote', 'close_vote'],
       required: true,
     },
   },

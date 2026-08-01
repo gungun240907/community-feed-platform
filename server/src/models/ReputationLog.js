@@ -7,7 +7,7 @@ const reputationLogSchema = new mongoose.Schema({
     type: String,
     enum: [
       'post_answer', 'accepted_answer', 'answer_5_upvotes', 'question_10_upvotes',
-      'profile_completed', 'downvote_received', 'answer_deleted', 'admin_removed',
+      'profile_completed', 'downvote_received', 'downvote_reverted', 'answer_deleted', 'admin_removed',
       'transfer_sent', 'transfer_received',
     ],
     required: true,

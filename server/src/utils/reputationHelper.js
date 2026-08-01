@@ -8,13 +8,26 @@ const REPUTATION_VALUES = {
   question_10_upvotes: 2,
   profile_completed: 10,
   downvote_received: -2,
+  downvote_reverted: 2,
   answer_deleted: -5,
   admin_removed: -10,
 };
 
+const IDEMPOTENT_REASONS = new Set([
+  'accepted_answer',
+  'answer_5_upvotes',
+  'question_10_upvotes',
+  'profile_completed',
+]);
+
 async function addReputation(userId, reason, referenceType = null, referenceId = null) {
   const amount = REPUTATION_VALUES[reason];
   if (!amount) return;
+
+  if (IDEMPOTENT_REASONS.has(reason) && referenceId) {
+    const exists = await ReputationLog.exists({ user: userId, reason, referenceId });
+    if (exists) return;
+  }
 
   await Promise.all([
     ReputationLog.create({ user: userId, amount, reason, referenceType, referenceId }),

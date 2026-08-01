@@ -22,6 +22,7 @@ function fetch(url, opts = {}) {
 }
 const BASE = 'https://client-eight-sigma-47.vercel.app/api';
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 async function login(email, pwd) {
   let r = await fetch(BASE + '/auth/login', { method: 'POST', body: { email, password: pwd } });
@@ -38,21 +39,24 @@ async function login(email, pwd) {
 async function main() {
   await mongoose.connect(process.env.TEST_MONGO_URI || 'mongodb://localhost:27017/community-feed');
   
-  // Get admin password
-  let r = await fetch(BASE + '/auth/forgot-password', { method: 'POST', body: { email: 'admin@devfeed.com' } });
-  const adminPwd = r.data?.newPassword;
+  // Reset admin password directly (forgot-password no longer returns the password in the response)
+  const adminHash = await bcrypt.hash('AdminTest123!', 10);
+  await mongoose.connection.collection('users').updateOne(
+    { email: 'admin@devfeed.com' }, { $set: { password: adminHash } }
+  );
   
   // Login all users
   const tAlice = await login('alice@test.com', 'ypNnXnpryqzKyJ');
   const tBob = await login('bob@test.com', 'Bob123!');
   const tCharlie = await login('charlie@test.com', 'Charlie123!');
-  const tAdmin = adminPwd ? await login('admin@devfeed.com', adminPwd) : null;
+  const tAdmin = await login('admin@devfeed.com', 'AdminTest123!');
   
   console.log('Tokens: Alice=' + !!tAlice + ' Bob=' + !!tBob + ' Charlie=' + !!tCharlie + ' Admin=' + !!tAdmin);
   if (!tAlice) { console.log('FATAL'); return; }
   
   console.log('\n========== PHASE 1: AUTH & SESSIONS ==========\n');
   
+  let r;
   console.log('1. GET /auth/me (Alice)');
   r = await fetch(BASE + '/auth/me', { headers: { 'Authorization': 'Bearer ' + tAlice } });
   console.log('   Status: ' + r.status + ' User: ' + (r.data?.user?.username || 'err') + ' OK');
@@ -71,17 +75,26 @@ async function main() {
   
   console.log('5. POST /auth/forgot-password');
   r = await fetch(BASE + '/auth/forgot-password', { method: 'POST', body: { email: 'alice@test.com' } });
-  console.log('   Status: ' + r.status + ' - ' + (r.data?.message || 'err') + ' OK');
+  console.log('   Status: ' + r.status + ' - ' + (r.data?.message || r.data?.error || 'err') + (r.status === 200 || r.status === 429 ? ' OK' : ' FAIL'));
   
-  const newPwd = r.data?.newPassword;
-  const tAlice2 = await login('alice@test.com', newPwd);
-  console.log('6. Re-login with new password: ' + (!!tAlice2 ? 'OK' : 'FAIL'));
+  if (r.status === 200) {
+    const r2 = await fetch(BASE + '/auth/forgot-password', { method: 'POST', body: { email: 'alice@test.com' } });
+    console.log('5b. Second request same day blocked: ' + r2.status + ' - ' + (r2.status === 429 ? 'OK' : 'FAIL') + ' "' + (r2.data?.error || '') + '"');
+  }
+  
+  // New password is delivered by email/SMS, not returned in the response. Reset it directly for the test.
+  const aliceHash = await bcrypt.hash('ypNnXnpryqzKyJ', 10);
+  await mongoose.connection.collection('users').updateOne(
+    { email: 'alice@test.com' }, { $set: { password: aliceHash } }
+  );
+  const tAlice2 = await login('alice@test.com', 'ypNnXnpryqzKyJ');
+  console.log('6. Re-login after password reset: ' + (!!tAlice2 ? 'OK' : 'FAIL'));
   
   console.log('\n========== PHASE 2: SUBSCRIPTIONS ==========\n');
   
   console.log('7. POST /subscriptions/dev-activate (bronze)');
   r = await fetch(BASE + '/subscriptions/dev-activate', { method: 'POST', body: { plan: 'bronze' }, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tAlice2 } });
-  console.log('   Status: ' + r.status + ' ' + (r.data?.message || JSON.stringify(r.data)) + ' OK');
+  console.log('   Status: ' + r.status + ' ' + (r.data?.message || JSON.stringify(r.data)) + (r.status === 200 || r.status === 404 || r.status === 503 ? ' OK (gated in prod)' : ' FAIL'));
   
   console.log('8. GET /subscriptions/status');
   r = await fetch(BASE + '/subscriptions/status', { headers: { 'Authorization': 'Bearer ' + tAlice2 } });

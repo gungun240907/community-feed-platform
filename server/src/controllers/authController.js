@@ -7,7 +7,8 @@ const { generateToken, getClientIp } = require('../middleware/auth');
 const { generatePassword } = require('../utils/passwordGenerator');
 const { parseUserAgent, generateDeviceFingerprint } = require('../utils/userAgentParser');
 const { getIpLocation } = require('../utils/ipLocation');
-const { sendNewDeviceLoginAlert } = require('../utils/emailService');
+const { sendNewDeviceLoginAlert, sendPasswordResetEmail } = require('../utils/emailService');
+const { sendPasswordResetSms } = require('../utils/smsService');
 const { createAndSendOtp } = require('../utils/otpService');
 
 const SESSION_DURATION_MS = parseInt(process.env.SESSION_DURATION_MS || (7 * 24 * 60 * 60 * 1000));
@@ -145,6 +146,7 @@ async function login(req, res, next) {
       type: 'email',
       request: req,
       io,
+      deliver: false,
     });
 
     const transport = require('nodemailer');
@@ -158,13 +160,13 @@ async function login(req, res, next) {
       });
     }
 
-    if (transporter) {
-      const otpDoc = await Otp.findOne({
-        user: user._id,
-        purpose: 'login_verification',
-        verified: false,
-      }).sort({ createdAt: -1 });
+    const otpDoc = await Otp.findOne({
+      user: user._id,
+      purpose: 'login_verification',
+      verified: false,
+    }).sort({ createdAt: -1 });
 
+    if (transporter) {
       const otpCode = otpDoc ? otpDoc.code : 'N/A';
       await transporter.sendMail({
         from: `"DevFeed Security" <${process.env.SMTP_FROM || 'noreply@devfeed.com'}>`,
@@ -184,6 +186,10 @@ async function login(req, res, next) {
           <p style="color:#6b7280;font-size:14px;">If this wasn't you, please ignore this email.</p>
         </div>`,
       });
+    } else if (process.env.NODE_ENV === 'production') {
+      return res.status(503).json({ error: 'Email service is not configured. Please contact support.' });
+    } else {
+      console.log(`[DEV] New device OTP for ${user.email}: ${otpDoc ? otpDoc.code : 'N/A'}`);
     }
 
     res.json({
@@ -353,13 +359,23 @@ async function forgotPassword(req, res, next) {
 
     const newPassword = generatePassword();
 
+    let delivered = false;
+    if (email && email.trim()) {
+      delivered = await sendPasswordResetEmail(user, newPassword);
+    } else {
+      delivered = await sendPasswordResetSms(user, newPassword);
+    }
+
+    if (!delivered) {
+      return res.status(503).json({ error: 'Unable to deliver the new password. Please try again later.' });
+    }
+
     user.password = newPassword;
     user.lastPasswordResetRequest = now;
     await user.save();
 
     res.json({
-      message: 'Password reset successfully',
-      newPassword,
+      message: 'A new password has been sent to your registered email/phone.',
     });
   } catch (error) {
     next(error);

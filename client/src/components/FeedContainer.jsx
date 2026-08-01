@@ -62,7 +62,7 @@ export default function FeedContainer({ type = 'personalized', hashtag = '', lim
 
   const fetchFn = useCallback(
     (page, lim, filter) => {
-      if (type === 'trending') return feedAPI.getTrending(lim || 20);
+      if (type === 'trending') return feedAPI.getTrending(page, lim || 20);
       return feedAPI.getPersonalized(page, lim || limit, filter?.hashtag || hashtag);
     },
     [type, limit, hashtag]

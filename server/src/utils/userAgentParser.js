@@ -38,7 +38,8 @@ function parseUserAgent(ua) {
 }
 
 function generateDeviceFingerprint(ua, ip, acceptLanguage) {
-  const raw = [ua || '', ip || '', acceptLanguage || ''].join('|');
+  const parsed = parseUserAgent(ua || '');
+  const raw = [parsed.browser, parsed.os, parsed.deviceType].join('|');
   let hash = 0;
   for (let i = 0; i < raw.length; i++) {
     const char = raw.charCodeAt(i);

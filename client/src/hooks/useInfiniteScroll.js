@@ -35,7 +35,15 @@ export default function useInfiniteScroll(fetchFn, options = {}) {
         const newPosts = response.data.posts;
         const pagination = response.data.pagination;
 
-        setData((prev) => (append ? [...prev, ...newPosts] : newPosts));
+        setData((prev) => {
+          const combined = append ? [...prev, ...newPosts] : newPosts;
+          const seen = new Set();
+          return combined.filter((p) => {
+            if (!p?._id || seen.has(p._id)) return false;
+            seen.add(p._id);
+            return true;
+          });
+        });
         setHasMore(pagination ? pagination.hasMore : newPosts.length === limit);
       } catch (err) {
         setError(err.response?.data?.error || err.message || 'Failed to load feed');
