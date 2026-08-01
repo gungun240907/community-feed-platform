@@ -34,7 +34,7 @@ async function boot() {
   process.env.SMTP_PASS = account.pass;
   process.env.SMTP_FROM = 'noreply@devfeed.com';
 
-  const app = require('../src/app');
+  const app = require('../src/server/app');
   const mongoose = require('mongoose');
 
   const dbReady = await waitFor(() => mongoose.connection.readyState === 1);

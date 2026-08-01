@@ -14,7 +14,7 @@ delete process.env.TWILIO_AUTH_TOKEN;
 delete process.env.TWILIO_FROM_NUMBER;
 
 async function main() {
-  const app = require('../src/app');
+  const app = require('../src/server/app');
   const mongoose = require('mongoose');
 
   for (let i = 0; i < 300; i++) {

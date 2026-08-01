@@ -152,6 +152,9 @@ async function connectDB() {
     });
     console.log('Connected to MongoDB');
   } else {
+    if (process.env.VERCEL) {
+      throw new Error('MONGO_URI is required on Vercel');
+    }
     const { MongoMemoryServer } = require('mongodb-memory-server');
     mongod = await MongoMemoryServer.create();
     const uri = mongod.getUri();
@@ -179,10 +182,12 @@ mongoose.connection.on('reconnected', () => {
   dbReady = true;
 });
 
-const dbPromise = connectDB().catch((err) => {
-  console.error('MongoDB connection error:', err);
-  throw err;
-});
+const dbPromise = process.env.NEXT_PHASE === 'phase-production-build'
+  ? Promise.resolve()
+  : connectDB().catch((err) => {
+      console.error('MongoDB connection error:', err);
+      throw err;
+    });
 
 if (require.main === module) {
   dbPromise.then(() => {
