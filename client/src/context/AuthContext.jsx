@@ -84,7 +84,8 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('user');
     setUser(null);
     setToken(null);
-  }, []);
+    router.push('/');
+  }, [router]);
 
   useEffect(() => {
     setOnUnauthorized(() => {
