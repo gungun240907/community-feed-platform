@@ -1,5 +1,5 @@
-const Otp = require('../models/Otp');
 const { createAndSendOtp, verifyOtp } = require('../utils/otpService');
+const { getClientIp } = require('../middleware/auth');
 
 const VALID_LANGUAGES = ['en', 'es', 'hi', 'pt', 'zh', 'fr'];
 
@@ -27,19 +27,18 @@ async function requestLanguageSwitch(req, res, next) {
       });
     }
 
-    const io = req.app.get('io');
-    await createAndSendOtp({
+    const result = await createAndSendOtp({
       user: req.user,
       purpose: 'language_switch',
       type: useEmail ? 'email' : 'phone',
-      request: req,
-      io,
+      ip: getClientIp(req),
     });
 
     res.json({
-      message: `OTP sent to your ${useEmail ? 'email' : 'phone'} and via real-time connection.`,
+      message: `OTP sent to your ${useEmail ? 'email' : 'phone'}.`,
       type: useEmail ? 'email' : 'phone',
       language,
+      retryAfterMs: result.retryAfterMs,
     });
   } catch (error) {
     next(error);
@@ -61,7 +60,12 @@ async function verifyLanguageSwitch(req, res, next) {
     });
 
     if (!result.valid) {
-      return res.status(400).json({ error: result.error });
+      const status = result.code === 'LOCKED' ? 429 : 400;
+      return res.status(status).json({
+        error: result.error,
+        code: result.code,
+        ...(typeof result.remaining === 'number' ? { attemptsRemaining: result.remaining } : {}),
+      });
     }
 
     req.user.language = language;

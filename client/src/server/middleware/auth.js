@@ -5,8 +5,34 @@ const Session = require('../models/Session');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const SESSION_INACTIVE_TIMEOUT_MS = parseInt(process.env.SESSION_INACTIVE_TIMEOUT_MS || (30 * 24 * 60 * 60 * 1000));
 
+const AUTH_COOKIE_NAME = 'df_token';
+const AUTH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 function generateToken(userId, sessionId) {
   return jwt.sign({ id: userId, sessionId }, JWT_SECRET, { expiresIn: '7d' });
+}
+
+/**
+ * Persist the JWT in an httpOnly, SameSite, (secure in production) cookie.
+ * The bearer-token flow stays untouched; this cookie is defense-in-depth and
+ * lets the server re-authenticate requests that only present the cookie.
+ */
+function setAuthCookie(res, token) {
+  res.cookie(AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: AUTH_COOKIE_MAX_AGE_MS,
+  });
+}
+
+function getTokenFromRequest(req) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.split(' ')[1];
+  }
+  return req.cookies?.[AUTH_COOKIE_NAME] || null;
 }
 
 function getClientIp(req) {
@@ -17,12 +43,11 @@ function getClientIp(req) {
 
 async function authenticate(req, res, next) {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const token = getTokenFromRequest(req);
+    if (!token) {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
 
     const user = await User.findById(decoded.id);
@@ -70,13 +95,12 @@ async function authenticate(req, res, next) {
 
 async function optionalAuth(req, res, next) {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const token = getTokenFromRequest(req);
+    if (!token) {
       req.user = null;
       return next();
     }
 
-    const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.id);
     req.user = user && user.status === 'active' ? user : null;
@@ -87,4 +111,4 @@ async function optionalAuth(req, res, next) {
   }
 }
 
-module.exports = { authenticate, optionalAuth, generateToken, JWT_SECRET, getClientIp, SESSION_INACTIVE_TIMEOUT_MS };
+module.exports = { authenticate, optionalAuth, generateToken, setAuthCookie, AUTH_COOKIE_NAME, JWT_SECRET, getClientIp, SESSION_INACTIVE_TIMEOUT_MS };

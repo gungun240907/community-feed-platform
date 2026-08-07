@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const http = require('http');
 const { Server } = require('socket.io');
 
@@ -54,6 +56,15 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 }));
+
+// Security headers. CSP is disabled because Next.js injects inline scripts and
+// Firebase reCAPTCHA loads Google-hosted resources; the API already only serves
+// JSON. The rest of Helmet's headers (X-Frame-Options, nosniff, HSTS, etc.) apply.
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// Parse httpOnly auth cookies (df_token) for cookie-based authentication.
+app.use(cookieParser());
+
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
@@ -124,12 +135,32 @@ io.on('connection', (socket) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  const statusCode = err.statusCode || 500;
-  res.status(statusCode).json({
-    error: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
-  });
+  let statusCode = err.statusCode || 500;
+
+  // Malformed ObjectIds (e.g. an invalid id in a URL) are a client input error,
+  // never a server fault. Normalize Mongoose's CastError into a 400.
+  if (err.name === 'CastError') {
+    statusCode = 400;
+    err.message = 'Invalid ID format';
+    err.expose = true;
+  }
+
+  if (statusCode === 429) {
+    res.setHeader('Retry-After', String(Math.ceil((err.retryAfterMs || 60) / 1000)));
+  }
+
+  // Never leak internal error details for unhandled 5xx errors.
+  const message = err.expose || statusCode < 500
+    ? err.message
+    : 'Internal server error';
+
+  const body = { error: message };
+  if (err.code) body.code = err.code;
+  if (err.retryAfterMs) body.retryAfterMs = err.retryAfterMs;
+  if (process.env.NODE_ENV === 'development') body.stack = err.stack;
+
+  if (statusCode >= 500) console.error('Unhandled error:', err);
+  res.status(statusCode).json(body);
 });
 
 app.use((req, res) => {
@@ -141,9 +172,42 @@ const MONGO_URI = process.env.MONGO_URI;
 let mongod = null;
 let dbReady = false;
 
+/**
+ * Fail fast in production when security-critical configuration is missing.
+ * Prevents silent deployment with placeholder secrets or a missing DB URI.
+ */
+function assertProductionConfig() {
+  if (process.env.NODE_ENV !== 'production') return;
+  if (process.env.NEXT_PHASE === 'phase-production-build') return;
+
+  const required = ['JWT_SECRET', 'OTP_PEPPER_SECRET'];
+  if (!process.env.ALLOW_IN_MEMORY_DB) required.push('MONGO_URI');
+  for (const key of required) {
+    if (!process.env[key]) {
+      throw new Error(`Missing required environment variable: ${key}`);
+    }
+  }
+  if (String(process.env.JWT_SECRET).length < 32) {
+    throw new Error('JWT_SECRET must be a strong random secret of at least 32 characters');
+  }
+}
+
+assertProductionConfig();
+
 async function connectDB() {
   mongoose.set('bufferCommands', false);
   mongoose.set('bufferTimeoutMS', 30000);
+
+  // Idempotent: Next.js dev re-evaluates this module on hot reload, which would
+  // otherwise call mongoose.connect() twice (once per in-memory server) and blow
+  // up with "Can't call openUri() on an active connection with different
+  // connection strings". If we are already connected/connecting, reuse it.
+  const state = mongoose.connection.readyState;
+  if (state === 1 || state === 2) {
+    dbReady = true;
+    return;
+  }
+
   if (MONGO_URI) {
     await mongoose.connect(MONGO_URI, {
       serverSelectionTimeoutMS: 60000,
@@ -155,10 +219,11 @@ async function connectDB() {
     if (process.env.VERCEL) {
       throw new Error('MONGO_URI is required on Vercel');
     }
-    const { MongoMemoryServer } = require('mongodb-memory-server');
-    mongod = await MongoMemoryServer.create();
-    const uri = mongod.getUri();
-    await mongoose.connect(uri, {
+    if (!mongod) {
+      const { MongoMemoryServer } = require('mongodb-memory-server');
+      mongod = await MongoMemoryServer.create();
+    }
+    await mongoose.connect(mongod.getUri(), {
       serverSelectionTimeoutMS: 30000,
       connectTimeoutMS: 30000,
     });

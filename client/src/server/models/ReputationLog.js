@@ -18,4 +18,4 @@ const reputationLogSchema = new mongoose.Schema({
 
 reputationLogSchema.index({ user: 1, createdAt: -1 });
 
-module.exports = mongoose.model('ReputationLog', reputationLogSchema);
+module.exports = mongoose.models.ReputationLog || mongoose.model('ReputationLog', reputationLogSchema);

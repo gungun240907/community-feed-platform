@@ -1,7 +1,6 @@
 {
   "app.name": "DevFeed",
   "app.tagline": "开发者分享、学习和共同成长的地方。",
-
   "nav.home": "首页",
   "nav.trending": "热门",
   "nav.premium": "高级",
@@ -13,7 +12,6 @@
   "nav.getStarted": "开始使用",
   "nav.logout": "退出",
   "nav.search": "搜索",
-
   "search.placeholder": "搜索用户和帖子...",
   "search.results": "“{query}”的搜索结果",
   "search.found": "找到{userCount}位用户和{postCount}篇帖子",
@@ -24,14 +22,12 @@
   "search.tier.basic": "基础搜索",
   "search.tier.advanced": "高级搜索",
   "search.tier.highest": "最高优先级",
-
   "post.create.placeholder": "分享技术更新、项目展示或学习成果...",
   "post.create.media": "媒体",
   "post.create.post": "发布",
   "post.create.posting": "发布中...",
   "post.create.limit": "今日剩余{remaining}/{limit}篇帖子",
   "post.create.unlimited": "无限发帖",
-
   "post.like": "赞",
   "post.unlike": "取消赞",
   "post.comment": "评论",
@@ -46,18 +42,15 @@
   "post.minutes": "{m}分钟",
   "post.hours": "{h}小时",
   "post.days": "{d}天",
-
   "post.deleteConfirm.title": "删除帖子？",
   "post.deleteConfirm.message": "此操作无法撤销。",
   "post.deleteConfirm.cancel": "取消",
   "post.deleteConfirm.confirm": "删除",
-
   "post.editModal.title": "编辑帖子",
   "post.editModal.save": "保存",
   "post.editModal.saving": "保存中...",
   "post.editModal.cancel": "取消",
   "post.editModal.media": "媒体",
-
   "post.reportModal.title": "举报帖子",
   "post.reportModal.selectReason": "选择原因",
   "post.reportModal.reason.spam": "垃圾广告",
@@ -67,7 +60,6 @@
   "post.reportModal.reason.plagiarism": "抄袭",
   "post.reportModal.reason.other": "其他",
   "post.reportModal.submit": "提交举报",
-
   "comment.title": "评论",
   "comment.placeholder": "写评论...",
   "comment.post": "发布",
@@ -75,7 +67,6 @@
   "comment.reply": "回复",
   "comment.noComments": "暂无评论。成为第一个分享想法的人！",
   "comment.loadMore": "加载更多评论",
-
   "auth.login.title": "欢迎回来",
   "auth.login.subtitle": "登录您的账户",
   "auth.login.username": "用户名或邮箱",
@@ -84,7 +75,6 @@
   "auth.login.loading": "登录中...",
   "auth.login.noAccount": "还没有账户？",
   "auth.login.forgotPassword": "忘记密码？",
-
   "auth.register.title": "创建账户",
   "auth.register.subtitle": "加入开发者社区",
   "auth.register.username": "用户名",
@@ -97,7 +87,6 @@
   "auth.register.passwordHint": "至少6个字符",
   "auth.register.button": "创建账户",
   "auth.register.hasAccount": "已有账户？",
-
   "auth.forgotPassword.title": "忘记密码",
   "auth.forgotPassword.subtitle": "通过邮箱或手机重置密码",
   "auth.forgotPassword.identifier": "邮箱或手机号",
@@ -105,7 +94,6 @@
   "auth.forgotPassword.sending": "发送中...",
   "auth.forgotPassword.dayLimit": "您每天只能使用此选项一次。",
   "auth.forgotPassword.success": "新密码已发送到您的邮箱。",
-
   "profile.followers": "关注者",
   "profile.following": "正在关注",
   "profile.joined": "加入于{date}",
@@ -124,11 +112,9 @@
   "profile.end": "已到底部",
   "profile.loadMore": "加载更多",
   "profile.featured": "精选",
-
   "profile.reputationActivity": "声望动态",
   "profile.reputationEmpty": "暂无声望动态",
   "profile.reputationEmptyHint": "通过贡献获得声望。",
-
   "profile.privileges.title": "社区权限",
   "profile.privileges.points": "{points}声望值",
   "profile.privileges.comment": "无限制评论",
@@ -138,7 +124,6 @@
   "profile.privileges.required": "需要{points}声望值",
   "profile.privileges.unlocked": "已解锁",
   "profile.privileges.active": "已启用",
-
   "profile.transfer.title": "转移声望",
   "profile.transfer.button": "转移声望",
   "profile.transfer.receiver": "接收者用户名",
@@ -151,7 +136,6 @@
   "profile.transfer.empty": "暂无转移记录",
   "profile.transfer.to": "给 @{username}",
   "profile.transfer.from": "来自 @{username}",
-
   "editProfile.title": "编辑资料",
   "editProfile.subtitle": "更新您的公开资料信息",
   "editProfile.avatarUrl": "头像链接",
@@ -164,7 +148,6 @@
   "editProfile.saving": "保存中...",
   "editProfile.cancel": "取消",
   "editProfile.success": "资料更新成功！",
-
   "subscription.title": "高级会员",
   "subscription.subtitle": "释放您的全部潜力",
   "subscription.description": "选择适合您的计划。随时升级以解锁更多功能。",
@@ -174,7 +157,6 @@
   "subscription.viewSubscription": "查看您的订阅",
   "subscription.guarantee": "所有计划均享受30天退款保证。可随时取消。",
   "subscription.alreadySubscribed": "已订阅？",
-
   "subscription.dashboard": "订阅",
   "subscription.plan": "计划",
   "subscription.status": "状态",
@@ -186,12 +168,10 @@
   "subscription.cancel": "取消订阅",
   "subscription.reactivate": "重新激活",
   "subscription.billing": "账单详情",
-
   "pricing.free": "免费",
   "pricing.bronze": "青铜",
   "pricing.silver": "白银",
   "pricing.gold": "黄金",
-
   "support.title": "支持",
   "support.subtitle": "获取我们团队的帮助",
   "support.contact": "联系支持",
@@ -212,7 +192,6 @@
   "support.category.feature": "功能请求",
   "support.category.account": "账户问题",
   "support.category.other": "其他",
-
   "goldLounge.title": "黄金贵宾室",
   "goldLounge.exclusive": "专属",
   "goldLounge.welcome": "欢迎回来，{name}。享受您的高级特权。",
@@ -230,7 +209,6 @@
   "goldLounge.communityPosts": "黄金社区帖子",
   "goldLounge.welcomeMessage": "欢迎来到黄金贵宾室！",
   "goldLounge.welcomeHint": "与社区互动，您的帖子将显示在此处。",
-
   "admin.dashboard": "审核面板",
   "admin.subtitle": "管理举报内容和用户审核",
   "admin.refresh": "刷新",
@@ -249,11 +227,9 @@
   "admin.dismiss": "忽略",
   "admin.reportDetails": "举报详情",
   "admin.noData": "加载审核数据失败",
-
   "admin.deleteConfirm": "永久删除此帖子？这也将处理所有相关举报。",
   "admin.suspendConfirm": "封禁 @{username}？他们的帖子将保留，但无法进行互动。",
   "admin.unsuspendConfirm": "恢复 @{username}？他们将重新获得账户访问权限。",
-
   "common.loading": "加载中...",
   "common.error": "出了点问题",
   "common.retry": "重试",
@@ -268,7 +244,6 @@
   "common.or": "或",
   "common.verify": "发送验证码",
   "common.backToHome": "返回首页",
-
   "language.select": "语言",
   "language.switchTo": "切换到{language}",
   "language.verify.title": "验证语言切换",
@@ -280,6 +255,8 @@
   "language.verify.verify": "验证并切换",
   "language.verify.verifying": "验证中...",
   "language.verify.sending": "发送验证码...",
+  "language.verify.resend": "重新发送验证码",
+  "language.verify.resendIn": "重新发送在",
   "language.verify.success": "语言已切换为{language}",
   "language.verify.error": "验证码无效，请重试。",
   "language.verify.noEmail": "未找到邮箱地址，请更新您的资料。",
@@ -290,7 +267,6 @@
   "language.pt": "葡萄牙语",
   "language.zh": "中文",
   "language.fr": "法语",
-
   "notifications.title": "通知",
   "notifications.empty": "暂无通知",
   "notifications.emptyHint": "点赞、评论和关注的动态通知将显示在此处。",
@@ -300,12 +276,10 @@
   "notifications.reply": "{name} 回复了您的评论",
   "notifications.follow": "{name} 关注了您",
   "notifications.mention": "{name} 在帖子中提到了您",
-
   "errors.generic": "出错了，请重试。",
   "errors.notFound": "未找到",
   "errors.unauthorized": "未授权",
   "errors.forbidden": "禁止访问",
-
   "sessions.title": "活跃会话",
   "sessions.subtitle": "管理登录您账户的设备与会话",
   "sessions.current": "当前",
@@ -315,15 +289,35 @@
   "sessions.expires": "过期时间",
   "sessions.revokeConfirmTitle": "撤销会话？",
   "sessions.revokeConfirmMessage": "这将立即登出该设备。",
-
   "loginHistory.title": "登录历史",
   "loginHistory.subtitle": "查看您账户的所有登录活动",
   "loginHistory.empty": "暂无登录历史",
   "loginHistory.emptyHint": "您的登录活动将显示在此处。",
-
   "auth.login.verifyDevice": "验证您的身份",
   "auth.login.otpSent": "我们已向您的邮箱发送了验证码。",
   "auth.login.otpLabel": "验证码",
   "auth.login.verifyButton": "验证并登录",
-  "auth.login.trustDevice": "信任此设备，以便未来自动登录"
+  "auth.login.trustDevice": "信任此设备，以便未来自动登录",
+  "auth.login.resend": "重新发送验证码",
+  "auth.login.resendIn": "重新发送在",
+  "phoneAuth.methodLabel": "手机",
+  "phoneAuth.phoneLabel": "手机号码",
+  "phoneAuth.phoneHint": "输入带国家代码的手机号码。我们会向您发送验证码。",
+  "phoneAuth.sendOtp": "发送验证码",
+  "phoneAuth.sending": "发送中…",
+  "phoneAuth.otpLabel": "验证码",
+  "phoneAuth.otpHint": "输入发送到您手机的6位验证码",
+  "phoneAuth.resend": "重新发送",
+  "phoneAuth.resendIn": "重新发送（等待）",
+  "phoneAuth.verifyButton": "验证并登录",
+  "phoneAuth.verifying": "验证中…",
+  "phoneAuth.success": "手机验证成功，正在跳转…",
+  "phoneAuth.errors.invalidPhone": "请输入有效的手机号码。",
+  "phoneAuth.errors.wrongOtp": "验证码错误，请重试。",
+  "phoneAuth.errors.codeExpired": "验证码已过期，请重新获取。",
+  "phoneAuth.errors.sessionExpired": "会话已过期，请重新发送验证码。",
+  "phoneAuth.errors.tooManyRequests": "尝试次数过多，请稍后再试。",
+  "phoneAuth.errors.network": "网络错误，请检查您的连接。",
+  "phoneAuth.errors.generic": "出了点问题，请重试。",
+  "phoneAuth.errors.notConfigured": "手机登录暂不可用，请使用邮箱/密码登录。"
 }

@@ -1,7 +1,6 @@
 {
   "app.name": "DevFeed",
   "app.tagline": "Onde desenvolvedores compartilham, aprendem e crescem juntos.",
-
   "nav.home": "Início",
   "nav.trending": "Tendências",
   "nav.premium": "Premium",
@@ -13,7 +12,6 @@
   "nav.getStarted": "Começar",
   "nav.logout": "Sair",
   "nav.search": "Pesquisar",
-
   "search.placeholder": "Pesquisar usuários e posts...",
   "search.results": "Resultados para \"{query}\"",
   "search.found": "Encontrado(s) {userCount} usuário(s) e {postCount} post(ns)",
@@ -24,14 +22,12 @@
   "search.tier.basic": "Pesquisa Básica",
   "search.tier.advanced": "Pesquisa Avançada",
   "search.tier.highest": "Maior Prioridade",
-
   "post.create.placeholder": "Compartilhe uma atualização técnica, projeto ou conquista de aprendizado...",
   "post.create.media": "Mídia",
   "post.create.post": "Publicar",
   "post.create.posting": "Publicando...",
   "post.create.limit": "{remaining}/{limit} posts hoje",
   "post.create.unlimited": "Posts ilimitados",
-
   "post.like": "Curtir",
   "post.unlike": "Descurtir",
   "post.comment": "Comentar",
@@ -46,18 +42,15 @@
   "post.minutes": "{m}min",
   "post.hours": "{h}h",
   "post.days": "{d}d",
-
   "post.deleteConfirm.title": "Excluir Post?",
   "post.deleteConfirm.message": "Esta ação não pode ser desfeita.",
   "post.deleteConfirm.cancel": "Cancelar",
   "post.deleteConfirm.confirm": "Excluir",
-
   "post.editModal.title": "Editar Post",
   "post.editModal.save": "Salvar",
   "post.editModal.saving": "Salvando...",
   "post.editModal.cancel": "Cancelar",
   "post.editModal.media": "Mídia",
-
   "post.reportModal.title": "Denunciar Post",
   "post.reportModal.selectReason": "Selecione um motivo",
   "post.reportModal.reason.spam": "Spam",
@@ -67,7 +60,6 @@
   "post.reportModal.reason.plagiarism": "Plágio",
   "post.reportModal.reason.other": "Outro",
   "post.reportModal.submit": "Enviar Denúncia",
-
   "comment.title": "Comentários",
   "comment.placeholder": "Escreva um comentário...",
   "comment.post": "Publicar",
@@ -75,7 +67,6 @@
   "comment.reply": "Responder",
   "comment.noComments": "Nenhum comentário ainda. Seja o primeiro a compartilhar sua opinião!",
   "comment.loadMore": "Carregar mais comentários",
-
   "auth.login.title": "Bem-vindo de volta",
   "auth.login.subtitle": "Entre na sua conta",
   "auth.login.username": "Nome de usuário ou Email",
@@ -84,7 +75,6 @@
   "auth.login.loading": "Entrando...",
   "auth.login.noAccount": "Não tem uma conta?",
   "auth.login.forgotPassword": "Esqueceu a senha?",
-
   "auth.register.title": "Criar conta",
   "auth.register.subtitle": "Junte-se à comunidade de desenvolvedores",
   "auth.register.username": "Nome de usuário",
@@ -97,7 +87,6 @@
   "auth.register.passwordHint": "Pelo menos 6 caracteres",
   "auth.register.button": "Criar Conta",
   "auth.register.hasAccount": "Já tem uma conta?",
-
   "auth.forgotPassword.title": "Esqueci a senha",
   "auth.forgotPassword.subtitle": "Redefina sua senha usando email ou telefone",
   "auth.forgotPassword.identifier": "Email ou Número de Telefone",
@@ -105,7 +94,6 @@
   "auth.forgotPassword.sending": "Enviando...",
   "auth.forgotPassword.dayLimit": "Você pode usar esta opção apenas uma vez por dia.",
   "auth.forgotPassword.success": "Uma nova senha foi enviada para seu email.",
-
   "profile.followers": "seguidores",
   "profile.following": "seguindo",
   "profile.joined": "Entrou em {date}",
@@ -124,11 +112,9 @@
   "profile.end": "Você chegou ao fim",
   "profile.loadMore": "Carregar Mais",
   "profile.featured": "Destaque",
-
   "profile.reputationActivity": "Atividade de Reputação",
   "profile.reputationEmpty": "Nenhuma atividade de reputação ainda",
   "profile.reputationEmptyHint": "A reputação é ganha por meio de contribuições.",
-
   "profile.privileges.title": "Privilégios da Comunidade",
   "profile.privileges.points": "{points} pontos de reputação",
   "profile.privileges.comment": "Comentar sem restrições",
@@ -138,7 +124,6 @@
   "profile.privileges.required": "{points} reputação necessária",
   "profile.privileges.unlocked": "Desbloqueado",
   "profile.privileges.active": "Ativo",
-
   "profile.transfer.title": "Transferir Reputação",
   "profile.transfer.button": "Transferir Reputação",
   "profile.transfer.receiver": "Nome de usuário do receptor",
@@ -151,7 +136,6 @@
   "profile.transfer.empty": "Nenhuma transferência ainda",
   "profile.transfer.to": "Para @{username}",
   "profile.transfer.from": "De @{username}",
-
   "editProfile.title": "Editar Perfil",
   "editProfile.subtitle": "Atualize suas informações públicas de perfil",
   "editProfile.avatarUrl": "URL do Avatar",
@@ -164,7 +148,6 @@
   "editProfile.saving": "Salvando...",
   "editProfile.cancel": "Cancelar",
   "editProfile.success": "Perfil atualizado com sucesso!",
-
   "subscription.title": "Assinaturas Premium",
   "subscription.subtitle": "Desbloqueie todo seu potencial",
   "subscription.description": "Escolha o plano ideal para você. Faça upgrade a qualquer momento para desbloquear mais recursos.",
@@ -174,7 +157,6 @@
   "subscription.viewSubscription": "Ver sua assinatura",
   "subscription.guarantee": "Todos os planos incluem garantia de reembolso de 30 dias. Cancele quando quiser.",
   "subscription.alreadySubscribed": "Já é assinante?",
-
   "subscription.dashboard": "Assinatura",
   "subscription.plan": "Plano",
   "subscription.status": "Status",
@@ -186,12 +168,10 @@
   "subscription.cancel": "Cancelar Assinatura",
   "subscription.reactivate": "Reativar",
   "subscription.billing": "Detalhes de Cobrança",
-
   "pricing.free": "Grátis",
   "pricing.bronze": "Bronze",
   "pricing.silver": "Prata",
   "pricing.gold": "Ouro",
-
   "support.title": "Suporte",
   "support.subtitle": "Obtenha ajuda da nossa equipe",
   "support.contact": "Falar com Suporte",
@@ -212,7 +192,6 @@
   "support.category.feature": "Solicitar Recurso",
   "support.category.account": "Problema de Conta",
   "support.category.other": "Outro",
-
   "goldLounge.title": "Salão Dourado",
   "goldLounge.exclusive": "EXCLUSIVO",
   "goldLounge.welcome": "Bem-vindo de volta, {name}. Aproveite seus benefícios premium.",
@@ -230,7 +209,6 @@
   "goldLounge.communityPosts": "Posts da Comunidade Gold",
   "goldLounge.welcomeMessage": "Bem-vindo ao Salão Dourado!",
   "goldLounge.welcomeHint": "Interaja com a comunidade e seus posts aparecerão aqui.",
-
   "admin.dashboard": "Painel de Moderação",
   "admin.subtitle": "Gerencie conteúdo denunciado e moderação de usuários",
   "admin.refresh": "Atualizar",
@@ -249,11 +227,9 @@
   "admin.dismiss": "Dispensar",
   "admin.reportDetails": "Denúncias",
   "admin.noData": "Falha ao carregar dados de moderação",
-
   "admin.deleteConfirm": "Excluir este post permanentemente? Isso também resolverá todas as denúncias associadas.",
   "admin.suspendConfirm": "Suspender @{username}? Os posts dele(a) permanecerão, mas ele(a) não poderá interagir.",
   "admin.unsuspendConfirm": "Reativar @{username}? Ele(a) recuperará o acesso à conta.",
-
   "common.loading": "Carregando...",
   "common.error": "Algo deu errado",
   "common.retry": "Tentar novamente",
@@ -268,7 +244,6 @@
   "common.or": "ou",
   "common.verify": "Enviar OTP",
   "common.backToHome": "Voltar ao início",
-
   "language.select": "Idioma",
   "language.switchTo": "Mudar para {language}",
   "language.verify.title": "Verificar Mudança de Idioma",
@@ -280,6 +255,8 @@
   "language.verify.verify": "Verificar e Mudar",
   "language.verify.verifying": "Verificando...",
   "language.verify.sending": "Enviando OTP...",
+  "language.verify.resend": "Reenviar Código",
+  "language.verify.resendIn": "Reenviar em",
   "language.verify.success": "Idioma alterado para {language}",
   "language.verify.error": "OTP inválido. Tente novamente.",
   "language.verify.noEmail": "Nenhum email encontrado. Atualize seu perfil.",
@@ -290,7 +267,6 @@
   "language.pt": "Português",
   "language.zh": "Chinês",
   "language.fr": "Francês",
-
   "notifications.title": "Notificações",
   "notifications.empty": "Nenhuma notificação ainda",
   "notifications.emptyHint": "Notificações de curtidas, comentários e seguidores aparecerão aqui.",
@@ -300,12 +276,10 @@
   "notifications.reply": "{name} respondeu ao seu comentário",
   "notifications.follow": "{name} começou a seguir você",
   "notifications.mention": "{name} mencionou você em um post",
-
   "errors.generic": "Algo deu errado. Tente novamente.",
   "errors.notFound": "Não encontrado",
   "errors.unauthorized": "Não autorizado",
   "errors.forbidden": "Proibido",
-
   "sessions.title": "Sessões Ativas",
   "sessions.subtitle": "Gerencie dispositivos e sessões conectados à sua conta",
   "sessions.current": "Atual",
@@ -315,15 +289,35 @@
   "sessions.expires": "Expira em",
   "sessions.revokeConfirmTitle": "Revogar sessão?",
   "sessions.revokeConfirmMessage": "Isso desconectará o dispositivo imediatamente.",
-
   "loginHistory.title": "Histórico de Login",
   "loginHistory.subtitle": "Revise toda a atividade de login na sua conta",
   "loginHistory.empty": "Nenhum histórico de login ainda",
   "loginHistory.emptyHint": "Sua atividade de login aparecerá aqui.",
-
   "auth.login.verifyDevice": "Verifique sua Identidade",
   "auth.login.otpSent": "Enviamos um código de verificação para seu e-mail.",
   "auth.login.otpLabel": "Código de Verificação",
   "auth.login.verifyButton": "Verificar e Entrar",
-  "auth.login.trustDevice": "Confiar neste dispositivo para futuros logins"
+  "auth.login.trustDevice": "Confiar neste dispositivo para futuros logins",
+  "auth.login.resend": "Reenviar Código",
+  "auth.login.resendIn": "Reenviar em",
+  "phoneAuth.methodLabel": "Telefone",
+  "phoneAuth.phoneLabel": "Número de telefone",
+  "phoneAuth.phoneHint": "Digite seu número com o código do país. Enviaremos um código de verificação.",
+  "phoneAuth.sendOtp": "Enviar OTP",
+  "phoneAuth.sending": "Enviando...",
+  "phoneAuth.otpLabel": "Código de verificação",
+  "phoneAuth.otpHint": "Digite o código de 6 dígitos enviado ao seu telefone",
+  "phoneAuth.resend": "Reenviar código",
+  "phoneAuth.resendIn": "Reenviar em",
+  "phoneAuth.verifyButton": "Verificar e entrar",
+  "phoneAuth.verifying": "Verificando...",
+  "phoneAuth.success": "Telefone verificado. Redirecionando...",
+  "phoneAuth.errors.invalidPhone": "Digite um número de telefone válido.",
+  "phoneAuth.errors.wrongOtp": "Código incorreto. Tente novamente.",
+  "phoneAuth.errors.codeExpired": "O código expirou. Solicite um novo.",
+  "phoneAuth.errors.sessionExpired": "A sessão expirou. Envie o código novamente.",
+  "phoneAuth.errors.tooManyRequests": "Muitas tentativas. Tente novamente mais tarde.",
+  "phoneAuth.errors.network": "Erro de rede. Verifique sua conexão.",
+  "phoneAuth.errors.generic": "Algo deu errado. Tente novamente.",
+  "phoneAuth.errors.notConfigured": "Login por telefone indisponível. Use e-mail/senha."
 }

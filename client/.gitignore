@@ -1,2 +1,7 @@
 .vercel
 .env*
+
+# Firebase service-account key (contains a private key — NEVER commit)
+serviceAccountKey.json
+*service-account*.json
+*firebase-adminsdk*.json

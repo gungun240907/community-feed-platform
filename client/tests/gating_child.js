@@ -1,7 +1,9 @@
 process.env.MONGO_URI = '';
 process.env.NODE_ENV = 'production';
 process.env.ALLOW_DEV_ACTIVATE = 'true';
-process.env.JWT_SECRET = 'child-secret';
+process.env.ALLOW_IN_MEMORY_DB = 'true';
+process.env.JWT_SECRET = 'child-secret-0123456789abcdefghijklmnopqrstuvwxyz';
+process.env.OTP_PEPPER_SECRET = 'child-otp-pepper-0123456789';
 process.env.CLIENT_URL = 'http://localhost:3000';
 process.env.RAZORPAY_KEY_ID = '';
 process.env.RAZORPAY_KEY_SECRET = '';
@@ -9,9 +11,12 @@ delete process.env.RAZORPAY_WEBHOOK_SECRET;
 process.env.SMTP_HOST = '';
 process.env.SMTP_USER = '';
 process.env.SMTP_PASS = '';
-delete process.env.TWILIO_ACCOUNT_SID;
-delete process.env.TWILIO_AUTH_TOKEN;
-delete process.env.TWILIO_FROM_NUMBER;
+delete process.env.MSG91_AUTH_KEY;
+delete process.env.MSG91_SENDER_ID;
+delete process.env.MSG91_FLOW_ID;
+delete process.env.MSG91_FLOW_VARIABLE;
+delete process.env.MSG91_ROUTE;
+delete process.env.MSG91_BASE_URL;
 
 async function main() {
   const app = require('../src/server/app');

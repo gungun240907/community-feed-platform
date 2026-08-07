@@ -51,4 +51,4 @@ followerSchema.statics.unfollow = async function (followerId, followingId) {
   return result;
 };
 
-module.exports = mongoose.model('Follower', followerSchema);
+module.exports = mongoose.models.Follower || mongoose.model('Follower', followerSchema);

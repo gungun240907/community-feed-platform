@@ -14,3 +14,8 @@ nul
 .token
 el1pojectworkingfine/
 el1pojectworkingfine_temp/
+
+# Firebase service-account key (contains a private key — NEVER commit)
+serviceAccountKey.json
+*service-account*.json
+*firebase-adminsdk*.json

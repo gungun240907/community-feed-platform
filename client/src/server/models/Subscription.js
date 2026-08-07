@@ -40,4 +40,4 @@ const subscriptionSchema = new mongoose.Schema({
 subscriptionSchema.index({ razorpaySubscriptionId: 1 });
 subscriptionSchema.index({ status: 1 });
 
-module.exports = mongoose.model('Subscription', subscriptionSchema);
+module.exports = mongoose.models.Subscription || mongoose.model('Subscription', subscriptionSchema);

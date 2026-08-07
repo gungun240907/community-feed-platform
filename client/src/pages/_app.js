@@ -3,7 +3,6 @@ import { AuthProvider } from '../context/AuthContext';
 import { NotificationProvider } from '../context/NotificationContext';
 import { SocketProvider } from '../context/SocketContext';
 import { I18nProvider } from '../context/I18nContext';
-import { OtpProvider } from '../context/OtpContext';
 import Layout from '../components/Layout';
 
 export default function App({ Component, pageProps }) {
@@ -11,13 +10,11 @@ export default function App({ Component, pageProps }) {
     <AuthProvider>
       <NotificationProvider>
         <SocketProvider>
-          <OtpProvider>
           <I18nProvider>
             <Layout>
               <Component {...pageProps} />
             </Layout>
           </I18nProvider>
-          </OtpProvider>
         </SocketProvider>
       </NotificationProvider>
     </AuthProvider>

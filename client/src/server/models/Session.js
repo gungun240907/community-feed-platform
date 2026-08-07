@@ -56,7 +56,7 @@ const sessionSchema = new mongoose.Schema({
   },
   loginMethod: {
     type: String,
-    enum: ['password', 'otp', 'trusted_device'],
+    enum: ['password', 'otp', 'trusted_device', 'firebase'],
     default: 'password',
   },
 }, {
@@ -66,4 +66,4 @@ const sessionSchema = new mongoose.Schema({
 sessionSchema.index({ user: 1, isRevoked: 1, expiresAt: 1 });
 sessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-module.exports = mongoose.model('Session', sessionSchema);
+module.exports = mongoose.models.Session || mongoose.model('Session', sessionSchema);

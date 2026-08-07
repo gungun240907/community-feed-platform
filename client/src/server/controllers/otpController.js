@@ -1,33 +1,39 @@
-const { createAndSendOtp, verifyOtp } = require('../utils/otpService');
+const { createAndSendOtp, verifyOtp, getOtpStatus } = require('../utils/otpService');
+const { getClientIp } = require('../middleware/auth');
+
+/**
+ * OTP endpoints. All routes are authenticated (the requester must already
+ * have a session). Unauthenticated OTP flows (login verification) live under
+ * /api/auth (see authController).
+ *
+ * The plaintext OTP is NEVER included in any response.
+ */
 
 async function requestOtp(req, res, next) {
   try {
-    const { purpose, type } = req.body;
+    const { purpose, type } = req.validated;
+    const otpType = type || 'email';
 
-    if (!purpose) {
-      return res.status(400).json({ error: 'OTP purpose is required' });
+    if (otpType === 'phone' && !req.user.phone) {
+      return res.status(400).json({
+        error: 'No phone number found. Please update your profile first.',
+        code: 'MISSING_PHONE',
+      });
     }
 
-    const validPurposes = ['email_verification', 'phone_verification', 'password_reset', 'login_verification', 'language_switch'];
-    if (!validPurposes.includes(purpose)) {
-      return res.status(400).json({ error: 'Invalid OTP purpose' });
-    }
-
-    const otpType = type === 'phone' ? 'phone' : 'email';
-    const io = req.app.get('io');
-
-    const code = await createAndSendOtp({
+    const result = await createAndSendOtp({
       user: req.user,
       purpose,
       type: otpType,
-      request: req,
-      io,
+      ip: getClientIp(req),
     });
 
     res.json({
-      message: `OTP sent to your ${otpType} and via real-time connection.`,
+      message: `OTP sent to your ${otpType}.`,
       type: otpType,
       purpose,
+      expiresInMs: result.expiresAt.getTime() - Date.now(),
+      retryAfterMs: result.retryAfterMs,
     });
   } catch (error) {
     next(error);
@@ -36,12 +42,7 @@ async function requestOtp(req, res, next) {
 
 async function verifyOtpEndpoint(req, res, next) {
   try {
-    const { purpose, code } = req.body;
-
-    if (!purpose || !code) {
-      return res.status(400).json({ error: 'Purpose and code are required' });
-    }
-
+    const { purpose, code } = req.validated;
     const result = await verifyOtp({
       userId: req.user._id,
       purpose,
@@ -49,16 +50,66 @@ async function verifyOtpEndpoint(req, res, next) {
     });
 
     if (!result.valid) {
-      return res.status(400).json({ error: result.error });
+      const status = result.code === 'LOCKED' ? 429 : 400;
+      return res.status(status).json({
+        error: result.error,
+        code: result.code,
+        ...(typeof result.remaining === 'number' ? { attemptsRemaining: result.remaining } : {}),
+      });
     }
 
     res.json({
       message: 'OTP verified successfully',
       verified: true,
+      purpose,
     });
   } catch (error) {
     next(error);
   }
 }
 
-module.exports = { requestOtp, verifyOtpEndpoint };
+async function resendOtp(req, res, next) {
+  try {
+    const { purpose, type } = req.validated;
+    const otpType = type || 'email';
+
+    if (otpType === 'phone' && !req.user.phone) {
+      return res.status(400).json({
+        error: 'No phone number found. Please update your profile first.',
+        code: 'MISSING_PHONE',
+      });
+    }
+
+    // createAndSendOtp enforces the resend cooldown and throws a 429 when the
+    // previous code is still within the cooldown window.
+    const result = await createAndSendOtp({
+      user: req.user,
+      purpose,
+      type: otpType,
+      ip: getClientIp(req),
+    });
+
+    res.json({
+      message: 'A new OTP has been sent.',
+      type: otpType,
+      purpose,
+      expiresInMs: result.expiresAt.getTime() - Date.now(),
+      retryAfterMs: result.retryAfterMs,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** Informational endpoint so the UI can render a live resend countdown. */
+async function otpStatus(req, res, next) {
+  try {
+    const { purpose } = req.validated;
+    const status = await getOtpStatus({ userId: req.user._id, purpose });
+    res.json({ purpose, ...status });
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { requestOtp, verifyOtpEndpoint, resendOtp, otpStatus };

@@ -54,4 +54,4 @@ reportSchema.index({ post: 1, reporter: 1 }, { unique: true });
 reportSchema.index({ status: 1, createdAt: -1 });
 reportSchema.index({ status: 1, post: 1 });
 
-module.exports = mongoose.model('Report', reportSchema);
+module.exports = mongoose.models.Report || mongoose.model('Report', reportSchema);

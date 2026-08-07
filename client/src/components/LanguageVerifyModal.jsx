@@ -1,33 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Send, AlertCircle, CheckCircle, Mail, Phone, Wifi } from 'lucide-react';
+import { X, Loader2, Send, AlertCircle, Mail, Phone } from 'lucide-react';
 import { languageAPI } from '../utils/api';
 import { useTranslation } from '../context/I18nContext';
-import { useOtp } from '../context/OtpContext';
 
 const LANG_LABELS = { en: 'English', es: 'Spanish', hi: 'Hindi', pt: 'Portuguese', zh: 'Chinese', fr: 'French' };
+const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function LanguageVerifyModal({ targetLang, onClose, onVerified }) {
   const { t } = useTranslation();
-  const { subscribe } = useOtp();
   const [step, setStep] = useState('request');
   const [otp, setOtp] = useState('');
   const [otpType, setOtpType] = useState(null);
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [otpReceivedViaSocket, setOtpReceivedViaSocket] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
-    if (step !== 'verify') return;
-    const unsub = subscribe('lang-verify', (data) => {
-      if (data.purpose === 'language_switch' && data.code) {
-        setOtp(data.code);
-        setOtpReceivedViaSocket(true);
-        setTimeout(() => setOtpReceivedViaSocket(false), 3000);
-      }
-    });
-    return unsub;
-  }, [step, subscribe]);
+    if (resendCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCountdown((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCountdown]);
 
   const handleRequest = async () => {
     setSending(true);
@@ -36,15 +32,37 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
       const res = await languageAPI.request(targetLang);
       setOtpType(res.data.type);
       setStep('verify');
+      setResendCountdown(Math.ceil((res.data?.retryAfterMs || 0) / 1000) || RESEND_COOLDOWN_SECONDS);
     } catch (err) {
       const msg = err.response?.data?.error || 'Failed to send OTP';
-      if (err.response?.data?.missingField === 'email' || err.response?.data?.missingField === 'phone') {
-        setError(msg);
+      const retryAfterMs = err.response?.data?.retryAfterMs;
+      if (retryAfterMs) {
+        setResendCountdown(Math.ceil(retryAfterMs / 1000));
       } else {
         setError(msg);
       }
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setError('');
+    setResending(true);
+    try {
+      const res = await languageAPI.request(targetLang);
+      const retryAfterSec = Math.ceil((res.data?.retryAfterMs || 0) / 1000);
+      setResendCountdown(retryAfterSec > 0 ? retryAfterSec : RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      const retryAfterMs = err.response?.data?.retryAfterMs;
+      if (retryAfterMs) {
+        setResendCountdown(Math.ceil(retryAfterMs / 1000));
+      } else {
+        setError(err.response?.data?.error || 'Unable to resend OTP. Please try again.');
+        setResendCountdown(RESEND_COOLDOWN_SECONDS);
+      }
+    } finally {
+      setResending(false);
     }
   };
 
@@ -113,14 +131,22 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
                   maxLength={6}
                   autoFocus
                 />
-                {otpReceivedViaSocket && (
-                  <div className="absolute -top-2 right-2 flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs font-medium px-2 py-0.5 rounded-full border border-emerald-200 animate-slide-down">
-                    <Wifi size={12} />
-                    Real-time
-                  </div>
-                )}
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resendCountdown > 0 || resending}
+              className="w-full text-sm font-medium text-primary-600 hover:text-primary-700 disabled:text-surface-400 transition-colors"
+            >
+              {resending ? (
+                <Loader2 size={14} className="animate-spin inline mr-1.5" />
+              ) : null}
+              {resendCountdown > 0
+                ? `${t('language.verify.resendIn')} ${resendCountdown}s`
+                : t('language.verify.resend')}
+            </button>
 
             <div className="flex gap-3">
               <button className="btn-secondary flex-1" onClick={onClose}>{t('common.cancel')}</button>

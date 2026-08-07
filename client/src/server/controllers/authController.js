@@ -2,14 +2,13 @@ const crypto = require('crypto');
 const User = require('../models/User');
 const Session = require('../models/Session');
 const LoginLog = require('../models/LoginLog');
-const Otp = require('../models/Otp');
 const { generateToken, getClientIp } = require('../middleware/auth');
 const { generatePassword } = require('../utils/passwordGenerator');
 const { parseUserAgent, generateDeviceFingerprint } = require('../utils/userAgentParser');
 const { getIpLocation } = require('../utils/ipLocation');
 const { sendNewDeviceLoginAlert, sendPasswordResetEmail } = require('../utils/emailService');
 const { sendPasswordResetSms } = require('../utils/smsService');
-const { createAndSendOtp } = require('../utils/otpService');
+const { createAndSendOtp, verifyOtp } = require('../utils/otpService');
 
 const SESSION_DURATION_MS = parseInt(process.env.SESSION_DURATION_MS || (7 * 24 * 60 * 60 * 1000));
 const MAX_ACTIVE_SESSIONS = parseInt(process.env.MAX_ACTIVE_SESSIONS || 20);
@@ -139,62 +138,20 @@ async function login(req, res, next) {
       return res.json({ user: userObj, token, sessionCreated: true });
     }
 
-    const io = req.app.get('io');
+    // Unknown device: require email OTP before issuing a session.
+    // createAndSendOtp hashes the code, enforces a resend cooldown and only
+    // delivers it to the registered email address.
     await createAndSendOtp({
       user,
       purpose: 'login_verification',
       type: 'email',
-      request: req,
-      io,
-      deliver: false,
+      ip,
     });
-
-    const transport = require('nodemailer');
-    let transporter = null;
-    if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-      transporter = transport.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      });
-    }
-
-    const otpDoc = await Otp.findOne({
-      user: user._id,
-      purpose: 'login_verification',
-      verified: false,
-    }).sort({ createdAt: -1 });
-
-    if (transporter) {
-      const otpCode = otpDoc ? otpDoc.code : 'N/A';
-      await transporter.sendMail({
-        from: `"DevFeed Security" <${process.env.SMTP_FROM || 'noreply@devfeed.com'}>`,
-        to: user.email,
-        subject: 'Verify your login from a new device',
-        html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;text-align:center;">
-          <h2>New Device Login Verification</h2>
-          <p style="color:#6b7280;">We detected a login from a new device.</p>
-          <div style="margin:24px 0;">
-            <p style="font-size:14px;color:#374151;margin:4px 0;"><strong>Browser:</strong> ${parsedUA.browser}</p>
-            <p style="font-size:14px;color:#374151;margin:4px 0;"><strong>OS:</strong> ${parsedUA.os}</p>
-            <p style="font-size:14px;color:#374151;margin:4px 0;"><strong>IP:</strong> ${ip}</p>
-            ${location.raw ? `<p style="font-size:14px;color:#374151;margin:4px 0;"><strong>Location:</strong> ${location.raw}</p>` : ''}
-          </div>
-          <div style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#f3f4f6;padding:16px;border-radius:12px;margin:16px 0;">${otpCode}</div>
-          <p style="color:#6b7280;font-size:14px;">This code expires in 10 minutes.</p>
-          <p style="color:#6b7280;font-size:14px;">If this wasn't you, please ignore this email.</p>
-        </div>`,
-      });
-    } else if (process.env.NODE_ENV === 'production') {
-      return res.status(503).json({ error: 'Email service is not configured. Please contact support.' });
-    } else {
-      console.log(`[DEV] New device OTP for ${user.email}: ${otpDoc ? otpDoc.code : 'N/A'}`);
-    }
 
     res.json({
       requiresOtp: true,
       message: 'OTP sent to your email for new device verification.',
+      retryAfterMs: 0,
       deviceInfo: {
         browser: parsedUA.browser,
         os: parsedUA.os,
@@ -202,6 +159,48 @@ async function login(req, res, next) {
         ip,
         location: location.raw,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Re-send the new-device login OTP.
+ * Credentials are re-verified so this endpoint cannot be abused to spam OTPs
+ * without the user's password. The resend cooldown from otpService still applies.
+ */
+async function resendLoginOtp(req, res, next) {
+  try {
+    const { login, password } = req.validated;
+
+    const user = await User.findOne({
+      $or: [{ email: login.toLowerCase().trim() }, { username: login.toLowerCase().trim() }],
+    }).select('+password');
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (user.status === 'suspended') {
+      return res.status(403).json({ error: 'Account is suspended' });
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const result = await createAndSendOtp({
+      user,
+      purpose: 'login_verification',
+      type: 'email',
+      ip: getClientIp(req),
+    });
+
+    res.json({
+      requiresOtp: true,
+      message: 'A new OTP has been sent to your email.',
+      retryAfterMs: result.retryAfterMs,
     });
   } catch (error) {
     next(error);
@@ -232,23 +231,22 @@ async function verifyLoginOtp(req, res, next) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const otpDoc = await Otp.findOne({
-      user: user._id,
+    // Verify the OTP via the hardened service (hashed compare, attempt caps,
+    // atomic one-time consumption). The code is never compared in plaintext.
+    const otpResult = await verifyOtp({
+      userId: user._id,
       purpose: 'login_verification',
-      verified: false,
-      expiresAt: { $gt: new Date() },
-    }).sort({ createdAt: -1 });
+      code: otp,
+    });
 
-    if (!otpDoc) {
-      return res.status(400).json({ error: 'OTP expired or not found. Please login again.' });
+    if (!otpResult.valid) {
+      const status = otpResult.code === 'LOCKED' ? 429 : 400;
+      return res.status(status).json({
+        error: otpResult.error,
+        code: otpResult.code,
+        ...(typeof otpResult.remaining === 'number' ? { attemptsRemaining: otpResult.remaining } : {}),
+      });
     }
-
-    if (otpDoc.code !== otp) {
-      return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
-    }
-
-    otpDoc.verified = true;
-    await otpDoc.save();
 
     const ua = req.headers['user-agent'] || '';
     const ip = getClientIp(req);
@@ -338,8 +336,12 @@ async function forgotPassword(req, res, next) {
       user = await User.findOne({ phone: phone.trim() }).select('+password');
     }
 
+    // OWASP: never reveal whether an account exists. Return the same generic
+    // success message whether or not a user was found.
     if (!user) {
-      return res.status(404).json({ error: 'No account found with that information' });
+      return res.json({
+        message: 'If an account matches that information, a new password has been sent.',
+      });
     }
 
     const now = new Date();
@@ -382,4 +384,4 @@ async function forgotPassword(req, res, next) {
   }
 }
 
-module.exports = { register, login, verifyLoginOtp, getMe, forgotPassword };
+module.exports = { register, login, verifyLoginOtp, resendLoginOtp, getMe, forgotPassword };

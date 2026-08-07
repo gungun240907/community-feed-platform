@@ -203,7 +203,6 @@ async function sendOtpEmail({ user, otp, purpose }) {
   const transport = getTransporter();
   if (!transport) {
     console.log('Email service not configured. Skipping OTP email.');
-    console.log(`OTP for ${user.email} (${purpose}): ${otp}`);
     return false;
   }
 
@@ -215,6 +214,8 @@ async function sendOtpEmail({ user, otp, purpose }) {
     password_reset: 'password reset',
   }[purpose] || purpose;
 
+  const expiryMinutes = process.env.OTP_EXPIRY_MINUTES || '5';
+
   try {
     await transport.sendMail({
       from: `"DevFeed Security" <${process.env.SMTP_FROM || 'noreply@devfeed.com'}>`,
@@ -223,7 +224,7 @@ async function sendOtpEmail({ user, otp, purpose }) {
       html: `
         <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; text-align: center;">
           <h2 style="color: #1f2937;">${purposeLabel === 'language change' ? 'Language Change' : 'Verification'} Code</h2>
-          <p style="color: #6b7280;">Use the code below to continue. It expires in 10 minutes.</p>
+          <p style="color: #6b7280;">Use the code below to continue. It expires in ${expiryMinutes} minutes.</p>
           <div style="font-size: 32px; font-weight: bold; letter-spacing: 8px; background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 16px 0;">${otp}</div>
           <p style="color: #9ca3af; font-size: 12px;">If you didn't request this, you can safely ignore this email.</p>
         </div>

@@ -3,6 +3,7 @@ const assert = require('node:assert');
 const crypto = require('crypto');
 
 const { boot, api, UA_A, UA_B } = require('./helpers');
+const otpService = require('../src/server/utils/otpService');
 
 const ctx = {};
 
@@ -119,6 +120,18 @@ test('register creates a user and returns a token', async () => {
   assert.strictEqual(missing.status, 400);
 });
 
+test('register validates its payload and returns 400 (never a 500) for invalid input', async () => {
+  const r = await api(ctx.base, 'POST', '/api/auth/register', {
+    body: { username: 'ab', email: 'bad', password: 'x' },
+  });
+  assert.strictEqual(r.status, 400);
+  assert.strictEqual(r.data.code, 'VALIDATION_ERROR');
+  assert.ok(r.data.fields, 'field-level errors must be returned');
+  assert.ok(r.data.fields.username);
+  assert.ok(r.data.fields.email);
+  assert.ok(r.data.fields.password);
+});
+
 test('login rejects invalid credentials', async () => {
   const r = await api(ctx.base, 'POST', '/api/auth/login', { body: { login: 'alice', password: 'wrongpass' } });
   assert.strictEqual(r.status, 401);
@@ -150,7 +163,9 @@ test('new-device login requires OTP (not returned in response), then session man
 
   const otpDoc = await latestOtp(ctx.users.freshuser._id, 'login_verification');
   assert.ok(otpDoc, 'login OTP was not persisted');
-  assert.ok(!JSON.stringify(loginR.data).includes(otpDoc.code), 'OTP code leaked into login response');
+  const preview = otpService.getTestOtpPreview(ctx.users.freshuser._id, 'login_verification');
+  assert.ok(preview, 'login OTP preview unavailable (NODE_ENV must be "test")');
+  assert.ok(!JSON.stringify(loginR.data).includes(preview.code), 'OTP code leaked into login response');
 
   const wrongOtp = await api(ctx.base, 'POST', '/api/auth/verify-login-otp', {
     body: { login: 'fresh@test.com', password: 'Fresh123!', otp: '000000', trustDevice: true },
@@ -158,7 +173,7 @@ test('new-device login requires OTP (not returned in response), then session man
   assert.strictEqual(wrongOtp.status, 400);
 
   const okOtp = await api(ctx.base, 'POST', '/api/auth/verify-login-otp', {
-    body: { login: 'fresh@test.com', password: 'Fresh123!', otp: otpDoc.code, trustDevice: true },
+    body: { login: 'fresh@test.com', password: 'Fresh123!', otp: preview.code, trustDevice: true },
   });
   assert.strictEqual(okOtp.status, 200);
   assert.ok(okOtp.data.token);
@@ -220,7 +235,7 @@ test('forgot-password is limited to once per day', async () => {
 
 test('forgot-password unknown account and missing fields', async () => {
   const unknown = await api(ctx.base, 'POST', '/api/auth/forgot-password', { body: { email: 'nobody@test.com' } });
-  assert.strictEqual(unknown.status, 404);
+  assert.strictEqual(unknown.status, 200, 'must not reveal whether an account exists (anti-enumeration)');
 
   const missing = await api(ctx.base, 'POST', '/api/auth/forgot-password', { body: {} });
   assert.strictEqual(missing.status, 400);
@@ -661,10 +676,12 @@ test('language switch sends OTP via email (fr) and changes the language', async 
 
   const otpDoc = await latestOtp(ctx.users.alice._id, 'language_switch');
   assert.ok(otpDoc, 'language OTP should be persisted');
+  const preview = otpService.getTestOtpPreview(ctx.users.alice._id, 'language_switch');
+  assert.ok(preview, 'language OTP preview unavailable (NODE_ENV must be "test")');
 
   const verify = await api(ctx.base, 'POST', '/api/language/verify', {
     token: ctx.tokens.alice,
-    body: { language: 'fr', otp: otpDoc.code },
+    body: { language: 'fr', otp: preview.code },
   });
   assert.strictEqual(verify.status, 200);
   assert.strictEqual(verify.data.user.language, 'fr');
@@ -699,21 +716,34 @@ test('OTP locks after 5 failed attempts', async () => {
 
   const otpDoc = await latestOtp(ctx.users.alice._id, 'email_verification');
   assert.ok(otpDoc);
+  assert.strictEqual(otpDoc.code, undefined, 'plaintext code must never be stored');
+  assert.match(otpDoc.codeHash || '', /^[0-9a-f]{64}$/, 'OTP must be stored as an HMAC-SHA256 hash');
+  const preview = otpService.getTestOtpPreview(ctx.users.alice._id, 'email_verification');
+  assert.ok(preview, 'email_verification OTP preview unavailable (NODE_ENV must be "test")');
+  assert.notStrictEqual(otpDoc.codeHash, preview.code, 'the stored hash must differ from the plaintext code');
 
-  for (let i = 0; i < 6; i++) {
+  // Wrong codes are 400 (MISMATCH) until the cap; the attempt that reaches the
+  // cap locks the OTP and returns 429 (LOCKED).
+  for (let i = 0; i < 5; i++) {
     const r = await api(ctx.base, 'POST', '/api/otp/verify', {
       token: ctx.tokens.alice,
       body: { purpose: 'email_verification', code: '000000' },
     });
-    assert.strictEqual(r.status, 400);
+    assert.strictEqual(r.status, i < 4 ? 400 : 429, `wrong-code attempt ${i + 1}`);
   }
+
+  const afterLock = await api(ctx.base, 'POST', '/api/otp/verify', {
+    token: ctx.tokens.alice,
+    body: { purpose: 'email_verification', code: '000000' },
+  });
+  assert.strictEqual(afterLock.status, 400, 'further attempts after lockout are rejected');
 
   const finalDoc = await ctx.mongoose.model('Otp').findOne({ _id: otpDoc._id });
   assert.ok(finalDoc.attempts >= 5, 'attempts counter should reach 5');
 
   const correctNowBlocked = await api(ctx.base, 'POST', '/api/otp/verify', {
     token: ctx.tokens.alice,
-    body: { purpose: 'email_verification', code: otpDoc.code },
+    body: { purpose: 'email_verification', code: preview.code },
   });
   assert.strictEqual(correctNowBlocked.status, 400, 'correct code must be rejected after lockout');
 });

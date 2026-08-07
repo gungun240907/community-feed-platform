@@ -31,7 +31,7 @@ const loginLogSchema = new mongoose.Schema({
   },
   method: {
     type: String,
-    enum: ['password', 'otp', 'trusted_device'],
+    enum: ['password', 'otp', 'trusted_device', 'firebase_phone'],
     default: 'password',
   },
   success: {
@@ -49,4 +49,4 @@ const loginLogSchema = new mongoose.Schema({
 loginLogSchema.index({ user: 1, createdAt: -1 });
 loginLogSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.model('LoginLog', loginLogSchema);
+module.exports = mongoose.models.LoginLog || mongoose.model('LoginLog', loginLogSchema);

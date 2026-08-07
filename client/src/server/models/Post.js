@@ -109,4 +109,4 @@ postSchema.index({ isDeleted: 1, createdAt: -1 });
 postSchema.index({ updatedAt: -1 });
 postSchema.index({ isReported: 1, reportCount: -1 });
 
-module.exports = mongoose.model('Post', postSchema);
+module.exports = mongoose.models.Post || mongoose.model('Post', postSchema);

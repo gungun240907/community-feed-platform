@@ -49,6 +49,8 @@ export default function ProfilePage() {
   const [transferInfo, setTransferInfo] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+  const isOwnProfile = currentUser && profile && currentUser._id === profile._id;
+
   useEffect(() => {
     if (!username) return;
     setIsLoading(true);
@@ -224,8 +226,6 @@ export default function ProfilePage() {
       </div>
     );
   }
-
-  const isOwnProfile = currentUser && currentUser._id === profile._id;
 
   const tabs = [
     { key: 'posts', label: t('profile.posts'), count: posts.length },

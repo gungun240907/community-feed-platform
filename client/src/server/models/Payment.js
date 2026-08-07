@@ -69,4 +69,4 @@ paymentSchema.index(
   { unique: true, partialFilterExpression: { invoiceNumber: { $type: 'string' } } }
 );
 
-module.exports = mongoose.model('Payment', paymentSchema);
+module.exports = mongoose.models.Payment || mongoose.model('Payment', paymentSchema);

@@ -1,7 +1,6 @@
 {
   "app.name": "DevFeed",
   "app.tagline": "Where developers share, learn, and grow together.",
-
   "nav.home": "Home",
   "nav.trending": "Trending",
   "nav.premium": "Premium",
@@ -13,7 +12,6 @@
   "nav.getStarted": "Get Started",
   "nav.logout": "Logout",
   "nav.search": "Search",
-
   "search.placeholder": "Search users and posts...",
   "search.results": "Results for \"{query}\"",
   "search.found": "Found {userCount} user(s) and {postCount} post(s)",
@@ -24,14 +22,12 @@
   "search.tier.basic": "Basic Search",
   "search.tier.advanced": "Advanced Search",
   "search.tier.highest": "Highest Priority",
-
   "post.create.placeholder": "Share a technical update, project showcase, or learning achievement...",
   "post.create.media": "Media",
   "post.create.post": "Post",
   "post.create.posting": "Posting...",
   "post.create.limit": "{remaining}/{limit} posts today",
   "post.create.unlimited": "Unlimited posts",
-
   "post.like": "Like",
   "post.unlike": "Unlike",
   "post.comment": "Comment",
@@ -46,18 +42,15 @@
   "post.minutes": "{m}m",
   "post.hours": "{h}h",
   "post.days": "{d}d",
-
   "post.deleteConfirm.title": "Delete Post?",
   "post.deleteConfirm.message": "This action cannot be undone.",
   "post.deleteConfirm.cancel": "Cancel",
   "post.deleteConfirm.confirm": "Delete",
-
   "post.editModal.title": "Edit Post",
   "post.editModal.save": "Save",
   "post.editModal.saving": "Saving...",
   "post.editModal.cancel": "Cancel",
   "post.editModal.media": "Media",
-
   "post.reportModal.title": "Report Post",
   "post.reportModal.selectReason": "Select a reason",
   "post.reportModal.reason.spam": "Spam",
@@ -67,7 +60,6 @@
   "post.reportModal.reason.plagiarism": "Plagiarism",
   "post.reportModal.reason.other": "Other",
   "post.reportModal.submit": "Submit Report",
-
   "comment.title": "Comments",
   "comment.placeholder": "Write a comment...",
   "comment.post": "Post",
@@ -75,7 +67,6 @@
   "comment.reply": "Reply",
   "comment.noComments": "No comments yet. Be the first to share your thoughts!",
   "comment.loadMore": "Load more comments",
-
   "auth.login.title": "Welcome back",
   "auth.login.subtitle": "Sign in to your account",
   "auth.login.username": "Username or Email",
@@ -84,7 +75,6 @@
   "auth.login.loading": "Signing in...",
   "auth.login.noAccount": "Don't have an account?",
   "auth.login.forgotPassword": "Forgot password?",
-
   "auth.register.title": "Create account",
   "auth.register.subtitle": "Join the developer community",
   "auth.register.username": "Username",
@@ -97,7 +87,6 @@
   "auth.register.passwordHint": "At least 6 characters",
   "auth.register.button": "Create Account",
   "auth.register.hasAccount": "Already have an account?",
-
   "auth.forgotPassword.title": "Forgot Password",
   "auth.forgotPassword.subtitle": "Reset your password using email or phone",
   "auth.forgotPassword.identifier": "Email or Phone Number",
@@ -105,7 +94,6 @@
   "auth.forgotPassword.sending": "Sending...",
   "auth.forgotPassword.dayLimit": "You can use this option only one time per day.",
   "auth.forgotPassword.success": "A new password has been sent to your email.",
-
   "profile.followers": "followers",
   "profile.following": "following",
   "profile.joined": "Joined {date}",
@@ -124,11 +112,9 @@
   "profile.end": "You've reached the end",
   "profile.loadMore": "Load More",
   "profile.featured": "Featured",
-
   "profile.reputationActivity": "Reputation Activity",
   "profile.reputationEmpty": "No reputation activity yet",
   "profile.reputationEmptyHint": "Reputation is earned through contributions.",
-
   "profile.privileges.title": "Community Privileges",
   "profile.privileges.points": "{points} reputation points",
   "profile.privileges.comment": "Comment without restrictions",
@@ -138,7 +124,6 @@
   "profile.privileges.required": "{points} reputation required",
   "profile.privileges.unlocked": "Unlocked",
   "profile.privileges.active": "Active",
-
   "profile.transfer.title": "Transfer Reputation",
   "profile.transfer.button": "Transfer Reputation",
   "profile.transfer.receiver": "Receiver Username",
@@ -151,7 +136,6 @@
   "profile.transfer.empty": "No transfers yet",
   "profile.transfer.to": "To @{username}",
   "profile.transfer.from": "From @{username}",
-
   "editProfile.title": "Edit Profile",
   "editProfile.subtitle": "Update your public profile information",
   "editProfile.avatarUrl": "Avatar URL",
@@ -164,7 +148,6 @@
   "editProfile.saving": "Saving...",
   "editProfile.cancel": "Cancel",
   "editProfile.success": "Profile updated successfully!",
-
   "subscription.title": "Premium Memberships",
   "subscription.subtitle": "Unlock your full potential",
   "subscription.description": "Choose the plan that fits your needs. Upgrade anytime to unlock more features.",
@@ -174,7 +157,6 @@
   "subscription.viewSubscription": "View your subscription",
   "subscription.guarantee": "All plans include a 30-day money-back guarantee. Cancel anytime.",
   "subscription.alreadySubscribed": "Already subscribed?",
-
   "subscription.dashboard": "Subscription",
   "subscription.plan": "Plan",
   "subscription.status": "Status",
@@ -186,12 +168,10 @@
   "subscription.cancel": "Cancel Subscription",
   "subscription.reactivate": "Reactivate",
   "subscription.billing": "Billing Details",
-
   "pricing.free": "Free",
   "pricing.bronze": "Bronze",
   "pricing.silver": "Silver",
   "pricing.gold": "Gold",
-
   "support.title": "Support",
   "support.subtitle": "Get help from our team",
   "support.contact": "Contact Support",
@@ -212,7 +192,6 @@
   "support.category.feature": "Feature Request",
   "support.category.account": "Account Issue",
   "support.category.other": "Other",
-
   "goldLounge.title": "Gold Lounge",
   "goldLounge.exclusive": "EXCLUSIVE",
   "goldLounge.welcome": "Welcome back, {name}. Enjoy your premium perks.",
@@ -230,7 +209,6 @@
   "goldLounge.communityPosts": "Gold Community Posts",
   "goldLounge.welcomeMessage": "Welcome to the Gold Lounge!",
   "goldLounge.welcomeHint": "Engage with the community and your posts will appear here.",
-
   "admin.dashboard": "Moderation Dashboard",
   "admin.subtitle": "Manage reported content and user moderation",
   "admin.refresh": "Refresh",
@@ -249,11 +227,9 @@
   "admin.dismiss": "Dismiss",
   "admin.reportDetails": "Reports",
   "admin.noData": "Failed to load moderation data",
-
   "admin.deleteConfirm": "Delete this post permanently? This will also action all associated reports.",
   "admin.suspendConfirm": "Suspend @{username}? Their posts will remain but they cannot interact.",
   "admin.unsuspendConfirm": "Reactivate @{username}? They will regain access to their account.",
-
   "common.loading": "Loading...",
   "common.error": "Something went wrong",
   "common.retry": "Try Again",
@@ -268,7 +244,6 @@
   "common.or": "or",
   "common.verify": "Send OTP",
   "common.backToHome": "Back to home",
-
   "language.select": "Language",
   "language.switchTo": "Switch to {language}",
   "language.verify.title": "Verify Language Change",
@@ -280,6 +255,8 @@
   "language.verify.verify": "Verify & Switch",
   "language.verify.verifying": "Verifying...",
   "language.verify.sending": "Sending OTP...",
+  "language.verify.resend": "Resend Code",
+  "language.verify.resendIn": "Resend in",
   "language.verify.success": "Language changed to {language}",
   "language.verify.error": "Invalid OTP. Please try again.",
   "language.verify.noEmail": "No email address found. Please update your profile.",
@@ -290,7 +267,6 @@
   "language.pt": "Portuguese",
   "language.zh": "Chinese",
   "language.fr": "French",
-
   "notifications.title": "Notifications",
   "notifications.empty": "No notifications yet",
   "notifications.emptyHint": "Notifications for likes, comments, and follows will appear here.",
@@ -300,12 +276,10 @@
   "notifications.reply": "{name} replied to your comment",
   "notifications.follow": "{name} started following you",
   "notifications.mention": "{name} mentioned you in a post",
-
   "errors.generic": "Something went wrong. Please try again.",
   "errors.notFound": "Not found",
   "errors.unauthorized": "Unauthorized",
   "errors.forbidden": "Forbidden",
-
   "sessions.title": "Active Sessions",
   "sessions.subtitle": "Manage devices and sessions logged into your account",
   "sessions.current": "Current",
@@ -315,15 +289,35 @@
   "sessions.expires": "Expires",
   "sessions.revokeConfirmTitle": "Revoke Session?",
   "sessions.revokeConfirmMessage": "This will sign the device out immediately.",
-
   "loginHistory.title": "Login History",
   "loginHistory.subtitle": "Review all login activity on your account",
   "loginHistory.empty": "No login history yet",
   "loginHistory.emptyHint": "Your login activity will appear here.",
-
   "auth.login.verifyDevice": "Verify Your Identity",
   "auth.login.otpSent": "We sent a verification code to your email.",
   "auth.login.otpLabel": "Verification Code",
   "auth.login.verifyButton": "Verify & Sign In",
-  "auth.login.trustDevice": "Trust this device for future logins"
+  "auth.login.trustDevice": "Trust this device for future logins",
+  "auth.login.resend": "Resend Code",
+  "auth.login.resendIn": "Resend in",
+  "phoneAuth.methodLabel": "Phone",
+  "phoneAuth.phoneLabel": "Phone number",
+  "phoneAuth.phoneHint": "Enter your number with country code. We'll text you a verification code.",
+  "phoneAuth.sendOtp": "Send OTP",
+  "phoneAuth.sending": "Sending...",
+  "phoneAuth.otpLabel": "Verification code",
+  "phoneAuth.otpHint": "Enter the 6-digit code sent to your phone",
+  "phoneAuth.resend": "Resend code",
+  "phoneAuth.resendIn": "Resend in",
+  "phoneAuth.verifyButton": "Verify & Login",
+  "phoneAuth.verifying": "Verifying...",
+  "phoneAuth.success": "Phone verified. Redirecting...",
+  "phoneAuth.errors.invalidPhone": "Please enter a valid phone number.",
+  "phoneAuth.errors.wrongOtp": "Incorrect code. Please try again.",
+  "phoneAuth.errors.codeExpired": "The code has expired. Request a new one.",
+  "phoneAuth.errors.sessionExpired": "This session expired. Send the code again.",
+  "phoneAuth.errors.tooManyRequests": "Too many attempts. Please try again later.",
+  "phoneAuth.errors.network": "Network error. Please check your connection.",
+  "phoneAuth.errors.generic": "Something went wrong. Please try again.",
+  "phoneAuth.errors.notConfigured": "Phone login is not available yet. Please use email/password."
 }

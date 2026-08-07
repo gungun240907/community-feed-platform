@@ -10,4 +10,4 @@ const reputationTransferSchema = new mongoose.Schema({
 reputationTransferSchema.index({ sender: 1, createdAt: -1 });
 reputationTransferSchema.index({ receiver: 1, createdAt: -1 });
 
-module.exports = mongoose.model('ReputationTransfer', reputationTransferSchema);
+module.exports = mongoose.models.ReputationTransfer || mongoose.model('ReputationTransfer', reputationTransferSchema);

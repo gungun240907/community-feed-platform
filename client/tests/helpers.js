@@ -1,16 +1,20 @@
 const nodemailer = require('nodemailer');
 
 process.env.MONGO_URI = '';
-process.env.NODE_ENV = 'development';
+process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-jwt-secret';
 process.env.CLIENT_URL = 'http://localhost:3000';
 process.env.ALLOW_DEV_ACTIVATE = 'true';
 process.env.RAZORPAY_KEY_ID = '';
 process.env.RAZORPAY_KEY_SECRET = 'test-signing-secret';
 delete process.env.RAZORPAY_WEBHOOK_SECRET;
-delete process.env.TWILIO_ACCOUNT_SID;
-delete process.env.TWILIO_AUTH_TOKEN;
-delete process.env.TWILIO_FROM_NUMBER;
+process.env.OTP_PEPPER_SECRET = 'test-otp-pepper';
+delete process.env.MSG91_AUTH_KEY;
+delete process.env.MSG91_SENDER_ID;
+delete process.env.MSG91_FLOW_ID;
+delete process.env.MSG91_FLOW_VARIABLE;
+delete process.env.MSG91_ROUTE;
+delete process.env.MSG91_BASE_URL;
 
 const UA_A = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const UA_B = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Gecko/20100101 Firefox/119.0';
