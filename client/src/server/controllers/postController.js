@@ -36,21 +36,20 @@ async function createPost(req, res, next) {
       await addReputation(req.user._id, 'post_answer', 'post', post._id);
     }
 
-    const populated = await post.populate('author', POPULATE_AUTHOR);
+    // Count every post type toward the plan's daily post limit (free = 1/day).
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    if (type === 'question') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const userDoc = await User.findById(req.user._id).select('postCount postCountResetDate');
+    const needsReset = !userDoc.postCountResetDate || userDoc.postCountResetDate < today;
 
-      const userDoc = await User.findById(req.user._id).select('postCount postCountResetDate');
-      const needsReset = !userDoc.postCountResetDate || userDoc.postCountResetDate < today;
-
-      if (needsReset) {
-        await User.findByIdAndUpdate(req.user._id, { $set: { postCount: 1, postCountResetDate: today } });
-      } else {
-        await User.findByIdAndUpdate(req.user._id, { $inc: { postCount: 1 } });
-      }
+    if (needsReset) {
+      await User.findByIdAndUpdate(req.user._id, { $set: { postCount: 1, postCountResetDate: today } });
+    } else {
+      await User.findByIdAndUpdate(req.user._id, { $inc: { postCount: 1 } });
     }
+
+    const populated = await post.populate('author', POPULATE_AUTHOR);
 
     const io = req.app.get('io');
     if (io && mentions.length > 0) {

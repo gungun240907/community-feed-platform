@@ -67,6 +67,12 @@ before(async () => {
     ctx.users[username] = { _id: u._id.toString() };
   }
 
+  const Subscription = ctx.mongoose.model('Subscription');
+  for (const [username] of SEED) {
+    if (username === 'newbie') continue;
+    await Subscription.create({ user: ctx.users[username]._id, plan: 'gold', status: 'active' });
+  }
+
   for (const [username] of SEED) {
     const r = await api(ctx.base, 'POST', '/api/auth/login', { body: { login: username, password: PASS[username] } });
     assert.strictEqual(r.status, 200, `login failed for ${username}: ${r.data?.error || r.status}`);
@@ -401,13 +407,13 @@ test('personalized feed filters by hashtag', async () => {
 // POSTS & REPUTATION
 // ---------------------------------------------------------------------------
 
-test('free plan is limited to 1 question per day; non-questions are unlimited', async () => {
+test('free plan is limited to 1 post per day across ALL post types', async () => {
   const q1 = await post(ctx.tokens.newbie, 'free question #nodejs', 'question');
   assert.strictEqual(q1.status, 201);
   const q2 = await post(ctx.tokens.newbie, 'free question two #nodejs', 'question');
   assert.strictEqual(q2.status, 429, 'second question for a free user should hit the daily quota');
   const normal = await post(ctx.tokens.newbie, 'just a regular post #nodejs');
-  assert.strictEqual(normal.status, 201, 'non-question posts must not be counted against the question quota');
+  assert.strictEqual(normal.status, 429, 'non-question posts must also count against the daily post quota');
 });
 
 test('post create, edit own, delete own', async () => {

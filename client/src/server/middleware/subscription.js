@@ -11,10 +11,6 @@ async function getSubscriptionWithPlan(userId) {
 
 async function checkPostLimit(req, res, next) {
   try {
-    if (req.body.postType !== 'question') {
-      return next();
-    }
-
     const { plan } = await getSubscriptionWithPlan(req.user._id);
     if (plan.postsPerDay === -1) {
       return next();
@@ -36,7 +32,7 @@ async function checkPostLimit(req, res, next) {
 
     if (currentCount >= plan.postsPerDay) {
       return res.status(429).json({
-        error: `Daily question limit reached. ${plan.name} plan allows ${plan.postsPerDay} question${plan.postsPerDay > 1 ? 's' : ''} per day. Upgrade to post more.`,
+        error: `Daily post limit reached. ${plan.name} plan allows ${plan.postsPerDay} post${plan.postsPerDay > 1 ? 's' : ''} per day. Upgrade to post more.`,
         limit: plan.postsPerDay,
         current: currentCount,
         plan: plan.name.toLowerCase(),
