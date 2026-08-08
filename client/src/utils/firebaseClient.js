@@ -17,6 +17,7 @@ function isFirebaseConfigured() {
 }
 
 let firebaseAppPromise = null;
+let authPromise = null;
 
 function getFirebaseApp() {
   if (!isFirebaseConfigured()) {
@@ -40,14 +41,33 @@ function getFirebaseApp() {
 }
 
 /**
+ * Lazily resolve the Firebase Auth instance. When NEXT_PUBLIC_FIREBASE_EMULATOR
+ * is 'true' (local development only), the SDK is wired to the local emulator so
+ * SMS codes can be verified without spending real messages.
+ */
+function getAuthInstance() {
+  if (!authPromise) {
+    authPromise = getFirebaseApp().then(async (app) => {
+      const { getAuth, connectAuthEmulator } = await import('firebase/auth');
+      const auth = getAuth(app);
+      if (process.env.NEXT_PUBLIC_FIREBASE_EMULATOR === 'true') {
+        connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+      }
+      return auth;
+    });
+  }
+  return authPromise;
+}
+
+/**
  * Kick off phone sign-in: renders an invisible reCAPTCHA in `containerId` and
  * asks Firebase to send a real SMS OTP to `phoneNumber` (E.164, e.g. +919876543210).
- * @returns {Promise<object>} confirmationResult used later by confirmPhoneOtp.
+ * @returns {Promise<object>} confirmationResult (its .verificationId is sent to
+ * our backend together with the code for REST verification).
  */
 async function sendPhoneOtp(phoneNumber, containerId) {
-  const app = await getFirebaseApp();
-  const { getAuth, RecaptchaVerifier, signInWithPhoneNumber } = await import('firebase/auth');
-  const auth = getAuth(app);
+  const auth = await getAuthInstance();
+  const { RecaptchaVerifier, signInWithPhoneNumber } = await import('firebase/auth');
   const verifier = new RecaptchaVerifier(auth, containerId, {
     size: 'invisible',
   });

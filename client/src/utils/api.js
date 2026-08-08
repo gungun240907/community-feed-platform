@@ -128,7 +128,10 @@ export const supportAPI = {
 
 export const languageAPI = {
   request: (language) => api.post('/language/request', { language }),
-  verify: (language, otp) => api.post('/language/verify', { language, otp }),
+  verify: (language, payload) => {
+    const body = typeof payload === 'string' ? { otp: payload } : { ...payload };
+    return api.post('/language/verify', { language, ...body });
+  },
 };
 
 export const reputationAPI = {

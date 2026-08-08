@@ -4,6 +4,7 @@ const crypto = require('crypto');
 
 const { boot, api, UA_A, UA_B } = require('./helpers');
 const otpService = require('../src/server/utils/otpService');
+const firebaseService = require('../src/server/utils/firebaseService');
 
 const ctx = {};
 
@@ -703,6 +704,52 @@ test('language switch to a phone-only language requires a phone number', async (
   });
   assert.strictEqual(r.status, 400);
   assert.strictEqual(r.data.missingField, 'phone');
+});
+
+test('language switch to a phone language is verified via Firebase SMS', async () => {
+  const User = ctx.mongoose.model('User');
+  const phone = '+919876543210';
+  await User.findByIdAndUpdate(ctx.users.alice._id, { phone });
+
+  process.env.FIREBASE_API_KEY = 'test-firebase-key';
+
+  try {
+    const request = await api(ctx.base, 'POST', '/api/language/request', {
+      token: ctx.tokens.alice,
+      body: { language: 'es' },
+    });
+    assert.strictEqual(request.status, 200);
+    assert.strictEqual(request.data.type, 'phone');
+    assert.strictEqual(request.data.delivery.channel, 'sms');
+    assert.strictEqual(request.data.code, undefined, 'the SMS code must never leave Firebase');
+    assert.match(request.data.delivery.contact, /\*\*\*\*/, 'the delivery phone must be masked');
+
+    firebaseService._setPhoneVerifier(async ({ phoneNumber }) => ({ phoneNumber, idToken: 'test-id-token' }));
+
+    const ok = await api(ctx.base, 'POST', '/api/language/verify', {
+      token: ctx.tokens.alice,
+      body: { language: 'es', verificationId: 'session-1', code: '123456' },
+    });
+    assert.strictEqual(ok.status, 200, `expected 200: ${ok.data?.error || ok.status}`);
+    assert.strictEqual(ok.data.user.language, 'es');
+
+    firebaseService._setPhoneVerifier(async () => ({ phoneNumber: '+919999999999', idToken: 'x' }));
+    const mismatch = await api(ctx.base, 'POST', '/api/language/verify', {
+      token: ctx.tokens.alice,
+      body: { language: 'pt', verificationId: 'session-1', code: '123456' },
+    });
+    assert.strictEqual(mismatch.status, 400, 'a code tied to a different phone must be rejected');
+
+    const noCreds = await api(ctx.base, 'POST', '/api/language/verify', {
+      token: ctx.tokens.alice,
+      body: { language: 'pt' },
+    });
+    assert.strictEqual(noCreds.status, 400, 'verification requires otp or verificationId+code');
+  } finally {
+    firebaseService._setPhoneVerifier(null);
+    delete process.env.FIREBASE_API_KEY;
+    await User.findByIdAndUpdate(ctx.users.alice._id, { $unset: { phone: 1 }, language: 'en' });
+  }
 });
 
 test('language switch rejects invalid language', async () => {

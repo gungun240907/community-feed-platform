@@ -1,68 +1,64 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Loader2, Send, AlertCircle, Mail, Phone } from 'lucide-react';
 import { languageAPI } from '../utils/api';
 import { useTranslation } from '../context/I18nContext';
+import { useAuth } from '../context/AuthContext';
+import { sendPhoneOtp } from '../utils/firebaseClient';
 
 const LANG_LABELS = { en: 'English', es: 'Spanish', hi: 'Hindi', pt: 'Portuguese', zh: 'Chinese', fr: 'French' };
-const RESEND_COOLDOWN_SECONDS = 60;
+
+const FIREBASE_ERRORS = {
+  'auth/invalid-phone-number': 'Phone number on your profile is invalid. Please update it.',
+  'auth/missing-phone-number': 'No phone number on your profile. Please add one in your profile settings.',
+  'auth/too-many-requests': 'Too many requests. Please wait a bit and try again.',
+  'auth/operation-not-allowed': 'Phone sign-in is not enabled in your Firebase project.',
+  'auth/quota-exceeded': 'SMS quota exceeded. Please try again later.',
+  'auth/network-request-failed': 'Network error while sending the SMS. Please try again.',
+  'auth/captcha-check-failed': 'Verification failed. Please try again.',
+  'auth/missing-app-credential': 'Verification failed. Please try again.',
+  'auth/internal-error': 'Something went wrong. Please try again.',
+};
+
+function firebaseErrorMessage(err) {
+  if (!err) return 'Failed to send OTP';
+  const mapped = FIREBASE_ERRORS[err.code];
+  if (mapped) return mapped;
+  return err.message || 'Failed to send OTP';
+}
 
 export default function LanguageVerifyModal({ targetLang, onClose, onVerified }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [step, setStep] = useState('request');
   const [otp, setOtp] = useState('');
-  const [otpType, setOtpType] = useState(null);
+  const [channel, setChannel] = useState(null);
+  const [verificationId, setVerificationId] = useState(null);
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [resendCountdown, setResendCountdown] = useState(0);
-  const [resending, setResending] = useState(false);
-
-  useEffect(() => {
-    if (resendCountdown <= 0) return;
-    const timer = setInterval(() => {
-      setResendCountdown((s) => Math.max(0, s - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [resendCountdown]);
 
   const handleRequest = async () => {
     setSending(true);
     setError('');
     try {
       const res = await languageAPI.request(targetLang);
-      setOtpType(res.data.type);
-      setStep('verify');
-      setResendCountdown(Math.ceil((res.data?.retryAfterMs || 0) / 1000) || RESEND_COOLDOWN_SECONDS);
-    } catch (err) {
-      const msg = err.response?.data?.error || 'Failed to send OTP';
-      const retryAfterMs = err.response?.data?.retryAfterMs;
-      if (retryAfterMs) {
-        setResendCountdown(Math.ceil(retryAfterMs / 1000));
-      } else {
-        setError(msg);
+      const chan = res.data.type === 'phone' ? 'phone' : 'email';
+      setChannel(chan);
+
+      if (chan === 'phone') {
+        if (!user?.phone) {
+          setError('No phone number on your profile. Please add one in your profile settings.');
+          return;
+        }
+        const confirmationResult = await sendPhoneOtp(user.phone, 'recaptcha-container');
+        setVerificationId(confirmationResult.verificationId);
       }
+
+      setStep('verify');
+    } catch (err) {
+      setError(firebaseErrorMessage(err));
     } finally {
       setSending(false);
-    }
-  };
-
-  const handleResend = async () => {
-    setError('');
-    setResending(true);
-    try {
-      const res = await languageAPI.request(targetLang);
-      const retryAfterSec = Math.ceil((res.data?.retryAfterMs || 0) / 1000);
-      setResendCountdown(retryAfterSec > 0 ? retryAfterSec : RESEND_COOLDOWN_SECONDS);
-    } catch (err) {
-      const retryAfterMs = err.response?.data?.retryAfterMs;
-      if (retryAfterMs) {
-        setResendCountdown(Math.ceil(retryAfterMs / 1000));
-      } else {
-        setError(err.response?.data?.error || 'Unable to resend OTP. Please try again.');
-        setResendCountdown(RESEND_COOLDOWN_SECONDS);
-      }
-    } finally {
-      setResending(false);
     }
   };
 
@@ -71,7 +67,10 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
     setVerifying(true);
     setError('');
     try {
-      const res = await languageAPI.verify(targetLang, otp);
+      const payload = channel === 'phone'
+        ? { verificationId, code: otp }
+        : { otp };
+      const res = await languageAPI.verify(targetLang, payload);
       if (onVerified) onVerified(targetLang, res.data);
       onClose();
     } catch (err) {
@@ -114,39 +113,23 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
           </div>
         ) : (
           <div className="space-y-4">
-            <div className={`flex items-center gap-2.5 p-3 rounded-xl text-sm ${otpType === 'email' ? 'bg-primary-50 text-primary-700 border border-primary-200' : 'bg-surface-50 text-surface-700 border border-surface-200'}`}>
-              {otpType === 'email' ? <Mail size={16} /> : <Phone size={16} />}
-              <span>{otpType === 'email' ? t('language.verify.emailOTP') : t('language.verify.phoneOTP')}</span>
+            <div className={`flex items-center gap-2.5 p-3 rounded-xl text-sm ${channel === 'email' ? 'bg-primary-50 text-primary-700 border border-primary-200' : 'bg-surface-50 text-surface-700 border border-surface-200'}`}>
+              {channel === 'email' ? <Mail size={16} /> : <Phone size={16} />}
+              <span>{channel === 'email' ? t('language.verify.emailOTP') : t('language.verify.phoneOTP')}</span>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-surface-700 mb-1.5">{t('language.verify.otp')}</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  className="input-field text-center text-lg tracking-[8px]"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder={t('language.verify.otpPlaceholder')}
-                  maxLength={6}
-                  autoFocus
-                />
-              </div>
+              <input
+                type="text"
+                className="input-field text-center text-lg tracking-[8px]"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder={t('language.verify.otpPlaceholder')}
+                maxLength={6}
+                autoFocus
+              />
             </div>
-
-            <button
-              type="button"
-              onClick={handleResend}
-              disabled={resendCountdown > 0 || resending}
-              className="w-full text-sm font-medium text-primary-600 hover:text-primary-700 disabled:text-surface-400 transition-colors"
-            >
-              {resending ? (
-                <Loader2 size={14} className="animate-spin inline mr-1.5" />
-              ) : null}
-              {resendCountdown > 0
-                ? `${t('language.verify.resendIn')} ${resendCountdown}s`
-                : t('language.verify.resend')}
-            </button>
 
             <div className="flex gap-3">
               <button className="btn-secondary flex-1" onClick={onClose}>{t('common.cancel')}</button>
@@ -160,6 +143,8 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
             </div>
           </div>
         )}
+
+        <div id="recaptcha-container" className="hidden" />
       </div>
     </div>
   );
