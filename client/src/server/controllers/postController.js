@@ -6,6 +6,7 @@ const Like = require('../models/Like');
 const { extractHashtags, extractMentions } = require('../utils/hashtagExtractor');
 const User = require('../models/User');
 const { addReputation } = require('../utils/reputationHelper');
+const { recordAdminViolation } = require('../utils/violationHelper');
 
 const POPULATE_AUTHOR = 'username displayName avatar';
 
@@ -14,7 +15,8 @@ const CLOSE_VOTE_THRESHOLD = 3;
 async function createPost(req, res, next) {
   try {
     const { content, mediaUrls, postType } = req.body;
-    const type = postType === 'answer' || postType === 'question' ? postType : 'post';
+    const VALID_TYPES = ['post', 'question', 'answer', 'showcase', 'achievement', 'snippet'];
+    const type = VALID_TYPES.includes(postType) ? postType : 'post';
 
     if (!content || !content.trim()) {
       return res.status(400).json({ error: 'Post content is required' });
@@ -162,6 +164,7 @@ async function deletePost(req, res, next) {
 
     if (isAdminDeletingOthers) {
       await addReputation(post.author, 'admin_removed', 'post', post._id);
+      await recordAdminViolation(post.author, req.app.get('io'));
     } else if (post.postType === 'answer') {
       await addReputation(req.user._id, 'answer_deleted', 'post', post._id);
     }

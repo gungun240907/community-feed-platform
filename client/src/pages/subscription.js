@@ -250,6 +250,41 @@ export default function SubscriptionPage() {
         </div>
       )}
 
+      {subscription && (
+        <div className="card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <FileText size={18} className="text-primary-500" />
+            <h2 className="font-semibold text-surface-900">{t('subscription.billing')}</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="bg-surface-50 rounded-xl p-4">
+              <p className="text-xs text-surface-400 uppercase tracking-wide">{t('subscription.billing.plan')}</p>
+              <p className="font-semibold text-sm text-surface-900 mt-1 capitalize">{planConfig?.name || 'Free'}</p>
+            </div>
+            <div className="bg-surface-50 rounded-xl p-4">
+              <p className="text-xs text-surface-400 uppercase tracking-wide">{t('subscription.billing.price')}</p>
+              <p className="font-semibold text-sm text-surface-900 mt-1">{planConfig?.price ? `₹${planConfig.price}/mo` : '₹0'}</p>
+            </div>
+            <div className="bg-surface-50 rounded-xl p-4">
+              <p className="text-xs text-surface-400 uppercase tracking-wide">{t('subscription.billing.status')}</p>
+              <p className={`font-semibold text-sm mt-1 capitalize ${subscription.status === 'active' ? 'text-emerald-600' : 'text-surface-900'}`}>{subscription.status}</p>
+            </div>
+            <div className="bg-surface-50 rounded-xl p-4">
+              <p className="text-xs text-surface-400 uppercase tracking-wide">{t('subscription.billing.renewal')}</p>
+              <p className="font-semibold text-sm text-surface-900 mt-1">{subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : '—'}</p>
+            </div>
+            <div className="bg-surface-50 rounded-xl p-4">
+              <p className="text-xs text-surface-400 uppercase tracking-wide">{t('subscription.billing.method')}</p>
+              <p className="font-semibold text-sm text-surface-900 mt-1">Razorpay</p>
+            </div>
+            <div className="bg-surface-50 rounded-xl p-4">
+              <p className="text-xs text-surface-400 uppercase tracking-wide">{t('subscription.billing.lastInvoice')}</p>
+              <p className="font-semibold text-sm text-surface-900 mt-1">{payments[0]?.invoiceNumber || '—'}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {payments.length > 0 && (
         <div className="card p-6">
           <div className="flex items-center gap-2 mb-4">

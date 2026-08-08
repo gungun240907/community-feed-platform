@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Image, X, Send, Loader2, AlertCircle, Crown } from 'lucide-react';
+import { Image, X, Send, Loader2, AlertCircle, Code2, FolderOpen, GraduationCap, FileText } from 'lucide-react';
 import { postAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/I18nContext';
@@ -8,10 +8,33 @@ const MAX_CHARS = 10000;
 
 const PLAN_POST_LIMITS = { free: 1, bronze: 5, silver: 15, gold: -1 };
 
+const POST_TYPES = [
+  { value: 'post', icon: FileText },
+  { value: 'showcase', icon: FolderOpen },
+  { value: 'achievement', icon: GraduationCap },
+  { value: 'snippet', icon: Code2 },
+];
+
+const CODE_LANGUAGES = [
+  'javascript', 'typescript', 'python', 'java', 'go', 'rust',
+  'cpp', 'csharp', 'php', 'ruby', 'sql', 'json', 'html', 'css', 'bash',
+];
+
+function buildEditorContent(description, snippetLanguage, snippetCode) {
+  const desc = (description || '').trim();
+  const code = (snippetCode || '').trim();
+  if (!code) return desc;
+  const block = '```' + snippetLanguage + '\n' + code + '\n```';
+  return desc ? `${desc}\n\n${block}` : block;
+}
+
 export default function CreatePost({ onPostCreated }) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const [content, setContent] = useState('');
+  const [postType, setPostType] = useState('post');
+  const [snippetLanguage, setSnippetLanguage] = useState('javascript');
+  const [snippetCode, setSnippetCode] = useState('');
   const [mediaUrls, setMediaUrls] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mediaInput, setMediaInput] = useState('');
@@ -20,8 +43,13 @@ export default function CreatePost({ onPostCreated }) {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  const charsRemaining = MAX_CHARS - content.length;
-  const isValid = content.trim().length > 0 && charsRemaining >= 0;
+  const effectiveContent = useMemo(
+    () => (postType === 'snippet' ? buildEditorContent(content, snippetLanguage, snippetCode) : content),
+    [postType, content, snippetLanguage, snippetCode]
+  );
+
+  const charsRemaining = MAX_CHARS - effectiveContent.length;
+  const isValid = effectiveContent.trim().length > 0 && charsRemaining >= 0;
 
   const postLimit = useMemo(() => {
     const plan = user?.subscriptionPlan || 'free';
@@ -33,7 +61,7 @@ export default function CreatePost({ onPostCreated }) {
     const used = (!resetDate || resetDate < today) ? 0 : (user?.postCount || 0);
     const remaining = Math.max(0, limit - used);
     return { limit, used, remaining, text: t('post.create.limit', { remaining, limit }) };
-  }, [user]);
+  }, [user, t]);
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files || []);
@@ -59,8 +87,11 @@ export default function CreatePost({ onPostCreated }) {
     setIsSubmitting(true);
     setError('');
     try {
-      const response = await postAPI.create({ content, mediaUrls });
+      const response = await postAPI.create({ content: effectiveContent, mediaUrls, postType });
       setContent('');
+      setPostType('post');
+      setSnippetCode('');
+      setSnippetLanguage('javascript');
       setMediaUrls([]);
       setShowMediaInput(false);
       if (onPostCreated) onPostCreated(response.data.post);
@@ -115,16 +146,89 @@ export default function CreatePost({ onPostCreated }) {
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={handleTextareaInput}
-            onKeyDown={handleKeyDown}
-            placeholder={t('post.create.placeholder')}
-            className="w-full resize-none border-0 bg-transparent placeholder-surface-400 text-surface-900 focus:outline-none focus:ring-0 text-sm min-h-[80px] leading-relaxed"
-            rows={3}
-            maxLength={MAX_CHARS}
-          />
+          <div className="flex gap-1.5 mb-2 flex-wrap">
+            {POST_TYPES.map(({ value, icon: Icon }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setPostType(value)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                  postType === value ? 'bg-primary-600 text-white shadow-sm' : 'bg-surface-100 text-surface-500 hover:bg-surface-200'
+                }`}
+              >
+                <Icon size={13} />
+                {t(`post.type.${value}`)}
+              </button>
+            ))}
+          </div>
+
+          {postType === 'snippet' && (
+            <div className="mb-2 rounded-xl border border-surface-200 bg-surface-50 p-3 space-y-2 animate-slide-down">
+              <div className="flex items-center gap-2">
+                <label htmlFor="snippet-language" className="text-xs font-medium text-surface-500">
+                  {t('post.snippet.language')}
+                </label>
+                <select
+                  id="snippet-language"
+                  className="input-field text-xs py-1.5 flex-1 sm:max-w-[180px]"
+                  value={snippetLanguage}
+                  onChange={(e) => setSnippetLanguage(e.target.value)}
+                >
+                  {CODE_LANGUAGES.map((lang) => (
+                    <option key={lang} value={lang}>{lang}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="relative">
+                <textarea
+                  value={snippetCode}
+                  onChange={(e) => setSnippetCode(e.target.value)}
+                  placeholder={t('post.snippet.placeholder')}
+                  className="w-full resize-y rounded-lg bg-surface-900 text-emerald-300 placeholder-surface-500 placeholder:text-emerald-200/40 font-mono text-xs p-3 focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[120px]"
+                  spellCheck={false}
+                />
+                {snippetCode.trim() && (
+                  <button
+                    type="button"
+                    className="absolute top-2 right-2 w-6 h-6 bg-surface-700 text-surface-300 rounded-md flex items-center justify-center opacity-80 hover:opacity-100 transition-opacity"
+                    onClick={() => setSnippetCode('')}
+                    title={t('common.cancel')}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-surface-400">{t('post.snippet.hint')}</p>
+            </div>
+          )}
+
+          {postType !== 'snippet' ? (
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={handleTextareaInput}
+              onKeyDown={handleKeyDown}
+              placeholder={postType === 'showcase'
+                ? t('post.showcase.placeholder')
+                : postType === 'achievement'
+                  ? t('post.achievement.placeholder')
+                  : t('post.create.placeholder')}
+              className="w-full resize-none border-0 bg-transparent placeholder-surface-400 text-surface-900 focus:outline-none focus:ring-0 text-sm min-h-[80px] leading-relaxed"
+              rows={3}
+              maxLength={MAX_CHARS}
+            />
+          ) : (
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={handleTextareaInput}
+              onKeyDown={handleKeyDown}
+              placeholder={t('post.create.placeholder')}
+              className="w-full resize-none border-0 bg-transparent placeholder-surface-400 text-surface-900 focus:outline-none focus:ring-0 text-sm min-h-[60px] leading-relaxed"
+              rows={2}
+              maxLength={MAX_CHARS}
+            />
+          )}
 
           {mediaUrls.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-3">

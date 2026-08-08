@@ -5,10 +5,12 @@ const { getPlanConfig } = require("../utils/razorpay");
 
 async function search(req, res, next) {
   try {
-    const { q } = req.query;
+    const { q, postType, hashtag } = req.query;
     if (!q || q.trim().length < 2) {
       return res.status(400).json({ error: "Query must be at least 2 characters" });
     }
+
+    const VALID_TYPES = ['post', 'question', 'answer', 'showcase', 'achievement', 'snippet'];
 
     const query = q.trim();
     const regex = new RegExp(query.replace(/[.*+?^${}()|[]]/g, "$&"), "i");
@@ -49,6 +51,13 @@ async function search(req, res, next) {
     const postFilter = includeHashtags
       ? { $or: [{ content: regex }, { hashtags: { $in: [query.toLowerCase()] } }] }
       : { content: regex };
+
+    if (hashtag && typeof hashtag === 'string' && hashtag.trim()) {
+      postFilter.hashtags = hashtag.trim().toLowerCase().replace(/^#/, '');
+    }
+    if (postType && VALID_TYPES.includes(postType)) {
+      postFilter.postType = postType;
+    }
 
     const posts = await Post.find({
       ...postFilter,

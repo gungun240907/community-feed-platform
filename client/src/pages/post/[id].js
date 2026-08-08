@@ -3,10 +3,13 @@ import { useRouter } from 'next/router';
 import { ArrowLeft, Loader2, Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Edit3, Trash2, Flag, AlertTriangle, X, Image } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import 'highlight.js/styles/github.css';
 import { postAPI } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { useSocketContext } from '../../context/SocketContext';
 import CommentSection from '../../components/CommentSection';
+import PostTypeBadge from '../../components/PostTypeBadge';
 import { useTranslation } from '../../context/I18nContext';
 
 export default function PostDetailPage() {
@@ -29,23 +32,30 @@ export default function PostDetailPage() {
   const [reportReason, setReportReason] = useState('');
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [editMediaUrls, setEditMediaUrls] = useState([]);
+  const [editMediaInput, setEditMediaInput] = useState('');
+  const [showEditMediaInput, setShowEditMediaInput] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const applyPost = useCallback((p) => {
+    setPost(p);
+    setIsLiked(p.isLiked || false);
+    setLikeCount(p.likeCount || 0);
+    setIsBookmarked(p.isBookmarked || false);
+    setBookmarkCount(p.bookmarkCount || 0);
+    setCommentCount(p.commentCount || 0);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
     setIsLoading(true);
     postAPI.get(id)
-      .then((res) => {
-        const p = res.data.post;
-        setPost(p);
-        setIsLiked(p.isLiked || false);
-        setLikeCount(p.likeCount || 0);
-        setIsBookmarked(p.isBookmarked || false);
-        setBookmarkCount(p.bookmarkCount || 0);
-        setCommentCount(p.commentCount || 0);
-      })
+      .then((res) => applyPost(res.data.post))
       .catch(() => router.push('/'))
       .finally(() => setIsLoading(false));
-  }, [id, router]);
+  }, [id, router, applyPost]);
 
   useEffect(() => {
     if (!id) return;
@@ -87,6 +97,20 @@ export default function PostDetailPage() {
     }
   }, [post, isBookmarked, bookmarkCount]);
 
+  const handleSaveEdit = useCallback(async () => {
+    if (!post || !editContent.trim() || isSaving) return;
+    setIsSaving(true);
+    try {
+      const response = await postAPI.update(post._id, { content: editContent, mediaUrls: editMediaUrls });
+      applyPost({ ...response.data.post, isLiked, isBookmarked });
+      setIsEditing(false);
+    } catch (err) {
+      console.error('Failed to update post:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [post, editContent, editMediaUrls, isSaving, applyPost, isLiked, isBookmarked]);
+
   const handleDelete = useCallback(async () => {
     if (!post) return;
     setIsDeleting(true);
@@ -112,16 +136,16 @@ export default function PostDetailPage() {
     if (!post) return;
     postAPI.share(post._id).catch(() => {});
     if (navigator.share) {
-      try { await navigator.share({ title: 'Check out this post!', url: window.location.href }); } catch {}
+      try { await navigator.share({ title: t('post.shareTitle'), url: window.location.href }); } catch {}
     } else {
       try { await navigator.clipboard.writeText(window.location.href); } catch {}
     }
-  }, [post]);
+  }, [post, t]);
 
   const timeAgo = (date) => {
     const diff = Date.now() - new Date(date).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
+    if (mins < 1) return t('post.justNow');
     if (mins < 60) return `${mins}m`;
     const hours = Math.floor(mins / 60);
     if (hours < 24) return `${hours}h`;
@@ -144,7 +168,7 @@ export default function PostDetailPage() {
     <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
       <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-sm text-surface-400 hover:text-surface-600 mb-2 transition-colors">
         <ArrowLeft size={16} />
-        Back
+        {t('postDetail.back')}
       </button>
 
       <article className="card p-4 sm:p-6 space-y-4">
@@ -164,8 +188,9 @@ export default function PostDetailPage() {
                 <a href={`/profile/${post.author?.username}`} className="font-semibold text-sm text-surface-900 hover:text-primary-600 transition-colors">
                   {post.author?.displayName || post.author?.username || 'Unknown'}
                 </a>
+                <PostTypeBadge type={post.postType} />
                 {post.isEdited && (
-                  <span className="text-[11px] text-surface-400 italic font-medium">(edited)</span>
+                  <span className="text-[11px] text-surface-400 italic font-medium">{t('post.edited')}</span>
                 )}
               </div>
               <span className="text-xs text-surface-400">{timeAgo(post.createdAt)}</span>
@@ -173,7 +198,7 @@ export default function PostDetailPage() {
           </div>
 
           <div className="relative">
-            <button onClick={() => setShowMenu(!showMenu)} className="touch-btn rounded-xl text-surface-400 hover:text-surface-600 hover:bg-surface-100 transition-all" aria-label="More actions">
+            <button onClick={() => setShowMenu(!showMenu)} className="touch-btn rounded-xl text-surface-400 hover:text-surface-600 hover:bg-surface-100 transition-all" aria-label={t('post.more')}>
               <MoreHorizontal size={18} />
             </button>
             {showMenu && (
@@ -182,17 +207,17 @@ export default function PostDetailPage() {
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-surface-200 py-1.5 z-20 animate-scale-in overflow-hidden">
                   {isOwnPost && (
                     <>
-                      <button className="w-full px-4 py-2.5 text-left text-sm hover:bg-surface-50 flex items-center gap-2.5 text-surface-700 transition-colors" onClick={() => { setShowMenu(false); }}>
-                        <Edit3 size={15} className="text-surface-400" /> Edit
+                      <button className="w-full px-4 py-2.5 text-left text-sm hover:bg-surface-50 flex items-center gap-2.5 text-surface-700 transition-colors" onClick={() => { setShowMenu(false); setEditContent(post.content); setEditMediaUrls(post.mediaUrls || []); setIsEditing(true); }}>
+                        <Edit3 size={15} className="text-surface-400" /> {t('post.edit')}
                       </button>
                       <button className="w-full px-4 py-2.5 text-left text-sm hover:bg-red-50 flex items-center gap-2.5 text-red-600 transition-colors" onClick={() => { setShowMenu(false); setShowConfirmDelete(true); }}>
-                        <Trash2 size={15} /> Delete
+                        <Trash2 size={15} /> {t('post.delete')}
                       </button>
                     </>
                   )}
                   {!isOwnPost && (
                     <button className="w-full px-4 py-2.5 text-left text-sm hover:bg-orange-50 flex items-center gap-2.5 text-orange-600 transition-colors" onClick={() => { setShowMenu(false); setShowReportModal(true); }}>
-                      <Flag size={15} /> Report
+                      <Flag size={15} /> {t('post.report')}
                     </button>
                   )}
                 </div>
@@ -202,7 +227,7 @@ export default function PostDetailPage() {
         </div>
 
         <div className="prose prose-sm max-w-none overflow-x-auto">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
             {post.content}
           </ReactMarkdown>
         </div>
@@ -229,19 +254,19 @@ export default function PostDetailPage() {
 
         <div className="flex items-center justify-between pt-3 border-t border-surface-100">
           <div className="flex items-center gap-0.5 sm:gap-1">
-            <button onClick={handleLike} className={`touch-btn gap-1.5 px-3 sm:px-4 rounded-xl transition-all duration-200 text-sm ${isLiked ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-surface-400 hover:text-red-500 hover:bg-red-50'}`} aria-label={isLiked ? 'Unlike' : 'Like'}>
+            <button onClick={handleLike} className={`touch-btn gap-1.5 px-3 sm:px-4 rounded-xl transition-all duration-200 text-sm ${isLiked ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-surface-400 hover:text-red-500 hover:bg-red-50'}`} aria-label={isLiked ? t('post.unlike') : t('post.like')}>
               <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
               {likeCount > 0 && <span className="text-xs font-semibold">{likeCount}</span>}
             </button>
-            <button onClick={() => setShowComments(!showComments)} className={`touch-btn gap-1.5 px-3 sm:px-4 rounded-xl transition-all duration-200 text-sm ${showComments ? 'text-primary-600 bg-primary-50' : 'text-surface-400 hover:text-primary-600 hover:bg-primary-50'}`} aria-label="Comments">
+            <button onClick={() => setShowComments(!showComments)} className={`touch-btn gap-1.5 px-3 sm:px-4 rounded-xl transition-all duration-200 text-sm ${showComments ? 'text-primary-600 bg-primary-50' : 'text-surface-400 hover:text-primary-600 hover:bg-primary-50'}`} aria-label={t('post.comment')}>
               <MessageCircle size={18} />
               {commentCount > 0 && <span className="text-xs font-semibold">{commentCount}</span>}
             </button>
-            <button onClick={handleShare} className="touch-btn gap-1.5 px-3 sm:px-4 rounded-xl text-surface-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-200 text-sm" aria-label="Share">
+            <button onClick={handleShare} className="touch-btn gap-1.5 px-3 sm:px-4 rounded-xl text-surface-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-200 text-sm" aria-label={t('post.share')}>
               <Share2 size={18} />
             </button>
           </div>
-          <button onClick={handleBookmark} className={`touch-btn gap-1.5 px-3 sm:px-4 rounded-xl transition-all duration-200 text-sm ${isBookmarked ? 'text-amber-500 bg-amber-50 hover:bg-amber-100' : 'text-surface-400 hover:text-amber-500 hover:bg-amber-50'}`} aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark'}>
+          <button onClick={handleBookmark} className={`touch-btn gap-1.5 px-3 sm:px-4 rounded-xl transition-all duration-200 text-sm ${isBookmarked ? 'text-amber-500 bg-amber-50 hover:bg-amber-100' : 'text-surface-400 hover:text-amber-500 hover:bg-amber-50'}`} aria-label={isBookmarked ? t('post.unbookmark') : t('post.bookmark')}>
             <Bookmark size={18} fill={isBookmarked ? 'currentColor' : 'none'} />
             {bookmarkCount > 0 && <span className="text-xs font-semibold">{bookmarkCount}</span>}
           </button>
@@ -252,6 +277,59 @@ export default function PostDetailPage() {
         )}
       </article>
 
+      {isEditing && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-scale-in my-8">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg text-surface-900">{t('post.editModal.title')}</h3>
+              <button className="touch-btn rounded-xl text-surface-400 hover:text-surface-600 hover:bg-surface-100 transition-all" onClick={() => setIsEditing(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <textarea
+              className="input-field min-h-[120px] resize-y text-sm"
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              maxLength={10000}
+              autoFocus
+            />
+
+            {editMediaUrls.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {editMediaUrls.map((url, i) => (
+                  <div key={i} className="relative group">
+                    <img src={url} alt="" className="h-20 w-20 object-contain rounded-xl border border-surface-200 bg-surface-100" onError={(e) => { e.target.style.display = 'none'; }} />
+                    <button type="button" className="absolute -top-2.5 -right-2.5 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600" onClick={() => setEditMediaUrls((prev) => prev.filter((_, j) => j !== i))}>
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {showEditMediaInput && (
+              <div className="flex gap-2 animate-slide-down">
+                <input type="text" value={editMediaInput} onChange={(e) => setEditMediaInput(e.target.value)} placeholder="Paste image URL..." className="input-field flex-1 text-sm" onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), setEditMediaUrls((prev) => [...prev, editMediaInput.trim()]), setEditMediaInput(''), setShowEditMediaInput(false))} autoFocus />
+                <button type="button" className="btn-primary text-sm" onClick={() => { setEditMediaUrls((prev) => [...prev, editMediaInput.trim()]); setEditMediaInput(''); setShowEditMediaInput(false); }} disabled={!editMediaInput.trim()}>Add</button>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2">
+              <button type="button" className="btn-ghost text-sm text-surface-400 gap-1.5" onClick={() => setShowEditMediaInput(!showEditMediaInput)}>
+                <Image size={16} /> {t('post.editModal.media')}
+              </button>
+              <div className="flex gap-3">
+                <button className="btn-secondary text-sm" onClick={() => setIsEditing(false)}>{t('post.editModal.cancel')}</button>
+                <button className="btn-primary text-sm" onClick={handleSaveEdit} disabled={!editContent.trim() || isSaving}>
+                  {isSaving ? <><Loader2 size={16} className="animate-spin mr-1.5" /> {t('post.editModal.saving')}</> : t('post.editModal.save')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showConfirmDelete && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-scale-in">
@@ -260,14 +338,14 @@ export default function PostDetailPage() {
                 <AlertTriangle size={22} />
               </div>
               <div>
-                <h3 className="font-semibold text-lg text-surface-900">Delete post?</h3>
-                <p className="text-sm text-surface-500">This action cannot be undone.</p>
+                <h3 className="font-semibold text-lg text-surface-900">{t('post.deleteConfirm.title')}</h3>
+                <p className="text-sm text-surface-500">{t('post.deleteConfirm.message')}</p>
               </div>
             </div>
             <div className="flex gap-3 justify-end pt-2">
-              <button className="btn-secondary" onClick={() => setShowConfirmDelete(false)}>Cancel</button>
+              <button className="btn-secondary" onClick={() => setShowConfirmDelete(false)}>{t('post.deleteConfirm.cancel')}</button>
               <button className="btn-danger" onClick={handleDelete} disabled={isDeleting}>
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? t('post.delete') + '...' : t('post.deleteConfirm.confirm')}
               </button>
             </div>
           </div>
@@ -277,19 +355,19 @@ export default function PostDetailPage() {
       {showReportModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-scale-in">
-            <h3 className="font-semibold text-lg text-surface-900">Report post</h3>
+            <h3 className="font-semibold text-lg text-surface-900">{t('post.reportModal.title')}</h3>
             <select className="input-field" value={reportReason} onChange={(e) => setReportReason(e.target.value)}>
-              <option value="">Select a reason...</option>
-              <option value="spam">Spam</option>
-              <option value="harassment">Harassment</option>
-              <option value="inappropriate">Inappropriate</option>
-              <option value="misinformation">Misinformation</option>
-              <option value="plagiarism">Plagiarism</option>
-              <option value="other">Other</option>
+              <option value="">{t('post.reportModal.selectReason')}</option>
+              <option value="spam">{t('post.reportModal.reason.spam')}</option>
+              <option value="harassment">{t('post.reportModal.reason.harassment')}</option>
+              <option value="inappropriate">{t('post.reportModal.reason.inappropriate')}</option>
+              <option value="misinformation">{t('post.reportModal.reason.misinformation')}</option>
+              <option value="plagiarism">{t('post.reportModal.reason.plagiarism')}</option>
+              <option value="other">{t('post.reportModal.reason.other')}</option>
             </select>
             <div className="flex gap-3 justify-end">
-              <button className="btn-secondary" onClick={() => setShowReportModal(false)}>Cancel</button>
-              <button className="btn-danger" onClick={handleReport} disabled={!reportReason}>Submit</button>
+              <button className="btn-secondary" onClick={() => setShowReportModal(false)}>{t('common.cancel')}</button>
+              <button className="btn-danger" onClick={handleReport} disabled={!reportReason}>{t('post.reportModal.submit')}</button>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
-import { Loader2, Calendar, Users, UserPlus, UserMinus, Inbox, RefreshCw, Edit3, MapPin, Link as LinkIcon, Sparkles, Award, ArrowUp, ArrowDown, Gift, Shield, CheckCircle, XCircle, X, Send, AlertTriangle, FileText, History, LogOut } from 'lucide-react';
+import { Loader2, Calendar, Users, UserPlus, UserMinus, Inbox, RefreshCw, Edit3, MapPin, Link as LinkIcon, Sparkles, Award, ArrowUp, ArrowDown, Gift, Shield, CheckCircle, XCircle, X, Send, AlertTriangle, FileText, History, LogOut, Crown } from 'lucide-react';
 import { userAPI, reputationAPI } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/I18nContext';
@@ -11,7 +11,8 @@ const repReasonLabels = {
   post_answer: 'Posted an answer', accepted_answer: 'Answer accepted',
   answer_5_upvotes: 'Answer reached 5 upvotes', question_10_upvotes: 'Question reached 10 upvotes',
   profile_completed: 'Profile completed', downvote_received: 'Downvote received',
-  answer_deleted: 'Answer deleted', admin_removed: 'Content removed by admin',
+  downvote_reverted: 'Downvote reverted', answer_deleted: 'Answer deleted',
+  admin_removed: 'Content removed by admin',
   transfer_sent: 'Reputation transferred out', transfer_received: 'Reputation transferred in',
 };
 
@@ -69,22 +70,22 @@ export default function ProfilePage() {
   }, [username]);
 
   useEffect(() => {
-    if (!profile || !isOwnProfile) return;
+    if (!profile) return;
     setPrivilegesLoading(true);
     reputationAPI.getPrivileges(profile._id)
       .then((res) => setPrivileges(res.data))
       .catch(() => {})
       .finally(() => setPrivilegesLoading(false));
-  }, [profile, isOwnProfile]);
+  }, [profile]);
 
   useEffect(() => {
-    if (!profile || activeTab !== 'reputation' || !isOwnProfile) return;
+    if (!profile || activeTab !== 'reputation') return;
     setRepLoading(true);
     reputationAPI.getHistory(profile._id, 1)
       .then((res) => { setRepLogs(res.data.logs); setRepPage(1); setRepHasMore(res.data.pagination.hasMore); })
       .catch(() => {})
       .finally(() => setRepLoading(false));
-  }, [profile, activeTab, isOwnProfile]);
+  }, [profile, activeTab]);
 
   useEffect(() => {
     if (!profile || activeTab !== 'transfers' || !isOwnProfile) return;
@@ -93,6 +94,12 @@ export default function ProfilePage() {
       .then((res) => { setTransfers(res.data.transfers); setTransfersPage(1); setTransfersHasMore(res.data.pagination.hasMore); })
       .catch(() => {})
       .finally(() => setTransfersLoading(false));
+  }, [profile, activeTab, isOwnProfile]);
+
+  useEffect(() => {
+    if (!profile || activeTab === 'transfers' || !isOwnProfile) {
+      setTransfers([]);
+    }
   }, [profile, activeTab, isOwnProfile]);
 
   const fetchPosts = useCallback(async (pageNum = 1) => {
@@ -229,10 +236,10 @@ export default function ProfilePage() {
 
   const tabs = [
     { key: 'posts', label: t('profile.posts'), count: posts.length },
+    { key: 'reputation', label: t('profile.reputationTab') },
+    { key: 'privileges', label: t('profile.privilegesTab') },
     ...(isOwnProfile ? [
-      { key: 'reputation', label: t('profile.reputationTab') },
       { key: 'transfers', label: t('profile.transfersTab') },
-      { key: 'privileges', label: t('profile.privilegesTab') },
     ] : []),
   ];
 
@@ -322,6 +329,25 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {isOwnProfile && (
+        <div className="card p-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center flex-shrink-0">
+              <Crown size={18} className="text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-surface-900 capitalize">{profile.subscriptionPlan || 'free'} {t('profile.plan.title')}</p>
+              <p className="text-xs text-surface-400">
+                {({ free: 1, bronze: 5, silver: 15, gold: -1 }[profile.subscriptionPlan] || 1) === -1
+                  ? t('profile.plan.unlimited')
+                  : t('profile.plan.perDay', { posts: ({ free: 1, bronze: 5, silver: 15, gold: -1 }[profile.subscriptionPlan] || 1) })}
+              </p>
+            </div>
+          </div>
+          <a href="/subscription" className="btn-soft text-sm flex-shrink-0">{t('profile.plan.manage')}</a>
+        </div>
+      )}
 
       {isOwnProfile && (
         <div className="flex gap-3 flex-wrap">
@@ -444,7 +470,7 @@ export default function ProfilePage() {
                       {log.amount > 0 ? <ArrowUp size={15} className="text-emerald-500" /> : <ArrowDown size={15} className="text-red-500" />}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-surface-900 truncate">{repReasonLabels[log.reason] || log.reason}</p>
+                      <p className="text-sm font-medium text-surface-900 truncate">{t(`profile.rep.${log.reason}`, repReasonLabels[log.reason] || log.reason)}</p>
                       <p className="text-xs text-surface-400">{new Date(log.createdAt).toLocaleDateString()}</p>
                     </div>
                   </div>

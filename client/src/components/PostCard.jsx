@@ -1,11 +1,14 @@
 import React, { useState, memo, useCallback, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import 'highlight.js/styles/github.css';
 import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Edit3, Trash2, Flag, AlertTriangle, X, Image, Loader2 } from 'lucide-react';
 import { postAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
 import CommentSection from './CommentSection';
+import PostTypeBadge from './PostTypeBadge';
 import { useTranslation } from '../context/I18nContext';
 
 const PostCard = memo(function PostCard({ post, onUpdate, onDelete }) {
@@ -164,6 +167,7 @@ const PostCard = memo(function PostCard({ post, onUpdate, onDelete }) {
               <a href={`/profile/${post.author?.username}`} className="font-semibold text-sm text-surface-900 hover:text-primary-600 transition-colors">
                 {post.author?.displayName || post.author?.username || 'Unknown'}
               </a>
+              <PostTypeBadge type={post.postType} />
               {post.isEdited && (
                 <span className="text-[11px] text-surface-400 italic font-medium">{t('post.edited')}</span>
               )}
@@ -215,7 +219,7 @@ const PostCard = memo(function PostCard({ post, onUpdate, onDelete }) {
       </div>
 
       <div className="prose prose-sm max-w-none overflow-x-auto">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
           {post.content}
         </ReactMarkdown>
       </div>

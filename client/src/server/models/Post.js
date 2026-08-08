@@ -34,7 +34,7 @@ const postSchema = new mongoose.Schema(
     ],
     postType: {
     type: String,
-    enum: ['post', 'question', 'answer'],
+    enum: ['post', 'question', 'answer', 'showcase', 'achievement', 'snippet'],
     default: 'post',
   },
   acceptedAnswer: {

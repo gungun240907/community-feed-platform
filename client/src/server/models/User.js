@@ -113,6 +113,10 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    adminViolations: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

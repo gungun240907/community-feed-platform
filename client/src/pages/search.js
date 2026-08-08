@@ -40,6 +40,8 @@ export default function SearchPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchTier, setSearchTier] = useState('basic');
+  const [filterType, setFilterType] = useState('all');
+  const [filterHashtag, setFilterHashtag] = useState('');
   const { t } = useTranslation();
 
   const fetchResults = useCallback(async (query) => {
@@ -47,7 +49,10 @@ export default function SearchPage() {
     setIsLoading(true);
     setError('');
     try {
-      const res = await searchAPI.search(query);
+      const params = {};
+      if (filterType !== 'all') params.postType = filterType;
+      if (filterHashtag.trim()) params.hashtag = filterHashtag.trim().replace(/^#/, '');
+      const res = await searchAPI.search(query, params);
       setUsers(res.data.users || []);
       setPosts(res.data.posts || []);
       if (res.data.searchTier) setSearchTier(res.data.searchTier);
@@ -56,11 +61,14 @@ export default function SearchPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [filterType, filterHashtag]);
 
   useEffect(() => {
     if (q) fetchResults(q);
   }, [q, fetchResults]);
+
+  const canUseFilters = user && (searchTier === 'advanced' || searchTier === 'highest');
+  const POST_TYPE_FILTERS = ['all', 'post', 'question', 'answer', 'showcase', 'achievement', 'snippet'];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -87,6 +95,40 @@ export default function SearchPage() {
           </div>
         </div>
       </div>
+
+      {canUseFilters && q && (
+        <div className="card p-4 space-y-3 animate-slide-down">
+          <div className="flex flex-wrap gap-1.5">
+            {POST_TYPE_FILTERS.map((type) => (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  filterType === type ? 'bg-primary-600 text-white shadow-sm' : 'bg-surface-100 text-surface-500 hover:bg-surface-200'
+                }`}
+              >
+                {type === 'all' ? t('search.filter.all') : t(`post.type.${type}`)}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <div className="relative flex-1 max-w-xs">
+              <Hash size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+              <input
+                type="text"
+                value={filterHashtag}
+                onChange={(e) => setFilterHashtag(e.target.value.replace(/\s+/g, '').replace(/^#/, ''))}
+                onKeyDown={(e) => e.key === 'Enter' && q && fetchResults(q)}
+                placeholder={t('search.filter.hashtagPlaceholder')}
+                className="input-field text-sm pl-8"
+              />
+            </div>
+            <button className="btn-soft text-sm" onClick={() => q && fetchResults(q)}>
+              {t('common.apply')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="card p-12 text-center space-y-4">

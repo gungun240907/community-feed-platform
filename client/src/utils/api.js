@@ -99,7 +99,7 @@ export const notificationAPI = {
 };
 
 export const searchAPI = {
-  search: (query) => api.get('/search', { params: { q: query } }),
+  search: (query, params = {}) => api.get('/search', { params: { q: query, ...params } }),
 };
 
 export const subscriptionAPI = {
