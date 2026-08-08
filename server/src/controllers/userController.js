@@ -5,6 +5,7 @@ const Follower = require('../models/Follower');
 const Notification = require('../models/Notification');
 const ReputationLog = require('../models/ReputationLog');
 const { addReputation } = require('../utils/reputationHelper');
+const { normalizePhoneNumber } = require('../utils/twilioService');
 const multer = require('multer');
 
 const upload = multer({
@@ -46,7 +47,19 @@ async function updateProfile(req, res, next) {
     if (displayName !== undefined) updates.displayName = displayName;
     if (bio !== undefined) updates.bio = bio;
     if (avatar !== undefined) updates.avatar = avatar;
-    if (phone !== undefined) updates.phone = phone;
+    if (phone !== undefined) {
+      if (phone === '') {
+        updates.phone = '';
+      } else {
+        const normalized = normalizePhoneNumber(phone);
+        if (!normalized) {
+          return res.status(400).json({
+            error: 'Phone number must be in international format with a country code (e.g. +919876543210).',
+          });
+        }
+        updates.phone = normalized;
+      }
+    }
 
     const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true });
 

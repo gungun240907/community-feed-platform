@@ -16,7 +16,7 @@ async function requestOtp(req, res, next) {
     const otpType = type === 'phone' ? 'phone' : 'email';
     const io = req.app.get('io');
 
-    const code = await createAndSendOtp({
+    const delivery = await createAndSendOtp({
       user: req.user,
       purpose,
       type: otpType,
@@ -24,10 +24,13 @@ async function requestOtp(req, res, next) {
       io,
     });
 
+    const channelLabel = delivery.channel === 'sms' ? 'SMS' : delivery.channel === 'email' ? 'email' : 'real-time connection';
+
     res.json({
-      message: `OTP sent to your ${otpType} and via real-time connection.`,
+      message: `OTP sent to your ${otpType} via ${channelLabel}.`,
       type: otpType,
       purpose,
+      delivery: { channel: delivery.channel, contact: delivery.contact },
     });
   } catch (error) {
     next(error);

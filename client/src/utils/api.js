@@ -116,7 +116,7 @@ export const supportAPI = {
 
 export const languageAPI = {
   request: (language) => api.post('/language/request', { language }),
-  verify: (language, otp) => api.post('/language/verify', { language, otp }),
+  verify: (language, payload) => api.post('/language/verify', { language, ...payload }),
 };
 
 export const reputationAPI = {

@@ -193,4 +193,43 @@ async function sendNewDeviceLoginAlert(user, deviceInfo) {
   }
 }
 
-module.exports = { sendSubscriptionConfirmation, sendSupportEmail, sendNewDeviceLoginAlert };
+async function sendOtpEmail({ to, code, purpose }) {
+  const transport = getTransporter();
+  if (!transport) return { sent: false, reason: 'not_configured' };
+
+  const subject = purpose === 'login_verification'
+    ? 'Verify your login from a new device'
+    : purpose === 'language_switch'
+      ? 'Verify your DevFeed language change'
+      : 'Your DevFeed verification code';
+
+  const bodyIntro = purpose === 'login_verification'
+    ? 'We detected a login from a new device. Use the code below to verify it.'
+    : purpose === 'language_switch'
+      ? 'Use the code below to confirm the language change on your account.'
+      : 'Use the code below to complete your verification.';
+
+  await transport.sendMail({
+    from: `"DevFeed Security" <${process.env.SMTP_FROM || 'noreply@devfeed.com'}>`,
+    to,
+    subject,
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; text-align: center;">
+        <h2 style="color: #1f2937; margin: 0 0 8px 0;">DevFeed Verification Code</h2>
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">${bodyIntro}</p>
+        <div style="font-size: 32px; font-weight: 700; letter-spacing: 8px; background: #f3f4f6; padding: 16px; border-radius: 12px; margin: 20px 0;">${code}</div>
+        <p style="color: #6b7280; font-size: 14px;">This code expires in 10 minutes.</p>
+        <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">DevFeed Community Platform &mdash; Keeping your account secure.</p>
+      </div>
+    `,
+  });
+
+  return { sent: true };
+}
+
+module.exports = {
+  sendSubscriptionConfirmation,
+  sendSupportEmail,
+  sendNewDeviceLoginAlert,
+  sendOtpEmail,
+};

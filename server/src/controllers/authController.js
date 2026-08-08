@@ -9,6 +9,7 @@ const { parseUserAgent, generateDeviceFingerprint } = require('../utils/userAgen
 const { getIpLocation } = require('../utils/ipLocation');
 const { sendNewDeviceLoginAlert } = require('../utils/emailService');
 const { createAndSendOtp } = require('../utils/otpService');
+const { normalizePhoneNumber } = require('../utils/twilioService');
 
 const SESSION_DURATION_MS = parseInt(process.env.SESSION_DURATION_MS || (7 * 24 * 60 * 60 * 1000));
 const MAX_ACTIVE_SESSIONS = parseInt(process.env.MAX_ACTIVE_SESSIONS || 20);
@@ -30,7 +31,17 @@ async function register(req, res, next) {
       return res.status(409).json({ error: `User with this ${field} already exists` });
     }
 
-    const user = await User.create({ username, email, password, displayName, phone });
+    let storedPhone = phone;
+    if (phone !== undefined && phone !== '') {
+      storedPhone = normalizePhoneNumber(phone);
+      if (!storedPhone) {
+        return res.status(400).json({
+          error: 'Phone number must be in international format with a country code (e.g. +919876543210).',
+        });
+      }
+    }
+
+    const user = await User.create({ username, email, password, displayName, phone: storedPhone });
 
     const sessionId = crypto.randomBytes(24).toString('hex');
     const token = generateToken(user._id, sessionId);
@@ -146,45 +157,6 @@ async function login(req, res, next) {
       request: req,
       io,
     });
-
-    const transport = require('nodemailer');
-    let transporter = null;
-    if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-      transporter = transport.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      });
-    }
-
-    if (transporter) {
-      const otpDoc = await Otp.findOne({
-        user: user._id,
-        purpose: 'login_verification',
-        verified: false,
-      }).sort({ createdAt: -1 });
-
-      const otpCode = otpDoc ? otpDoc.code : 'N/A';
-      await transporter.sendMail({
-        from: `"DevFeed Security" <${process.env.SMTP_FROM || 'noreply@devfeed.com'}>`,
-        to: user.email,
-        subject: 'Verify your login from a new device',
-        html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;text-align:center;">
-          <h2>New Device Login Verification</h2>
-          <p style="color:#6b7280;">We detected a login from a new device.</p>
-          <div style="margin:24px 0;">
-            <p style="font-size:14px;color:#374151;margin:4px 0;"><strong>Browser:</strong> ${parsedUA.browser}</p>
-            <p style="font-size:14px;color:#374151;margin:4px 0;"><strong>OS:</strong> ${parsedUA.os}</p>
-            <p style="font-size:14px;color:#374151;margin:4px 0;"><strong>IP:</strong> ${ip}</p>
-            ${location.raw ? `<p style="font-size:14px;color:#374151;margin:4px 0;"><strong>Location:</strong> ${location.raw}</p>` : ''}
-          </div>
-          <div style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#f3f4f6;padding:16px;border-radius:12px;margin:16px 0;">${otpCode}</div>
-          <p style="color:#6b7280;font-size:14px;">This code expires in 10 minutes.</p>
-          <p style="color:#6b7280;font-size:14px;">If this wasn't you, please ignore this email.</p>
-        </div>`,
-      });
-    }
 
     res.json({
       requiresOtp: true,

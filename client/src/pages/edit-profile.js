@@ -158,7 +158,7 @@ export default function EditProfilePage() {
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            placeholder="+1234567890"
+            placeholder="+919876543210"
             className="input-field text-sm"
           />
           <p className="text-xs text-surface-400 mt-1">{t('editProfile.phoneHint')}</p>
