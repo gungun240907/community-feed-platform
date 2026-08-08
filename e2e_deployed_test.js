@@ -149,7 +149,7 @@ async function main() {
   check('admin stats blocked for user (403)', r.status === 403);
 
   r = await req('POST', '/language/request', { token: tA, body: { language: 'fr' } });
-  check('language/request fr -> 503 (email not configured, expected)', r.status === 503, JSON.stringify(r.data));
+  check('language/request fr -> 200 (OTP emailed)', r.status === 200 && r.data?.channel === 'email', JSON.stringify(r.data));
 
   // ---- CLEANUP ----
   console.log('\n[CLEANUP]');
