@@ -120,6 +120,12 @@ export default function PricingPage() {
           contact: user?.phone || '',
         },
         theme: { color: '#4f46e5' },
+        method: {
+          card: true,
+          netbanking: true,
+          upi: true,
+          wallet: true,
+        },
         handler: async function (response) {
           try {
             await subscriptionAPI.verifyPayment({
