@@ -11,12 +11,6 @@ delete process.env.RAZORPAY_WEBHOOK_SECRET;
 process.env.SMTP_HOST = '';
 process.env.SMTP_USER = '';
 process.env.SMTP_PASS = '';
-delete process.env.MSG91_AUTH_KEY;
-delete process.env.MSG91_SENDER_ID;
-delete process.env.MSG91_FLOW_ID;
-delete process.env.MSG91_FLOW_VARIABLE;
-delete process.env.MSG91_ROUTE;
-delete process.env.MSG91_BASE_URL;
 
 async function main() {
   const app = require('../src/server/app');

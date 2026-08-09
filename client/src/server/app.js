@@ -58,8 +58,8 @@ app.use(cors({
 }));
 
 // Security headers. CSP is disabled because Next.js injects inline scripts and
-// Firebase reCAPTCHA loads Google-hosted resources; the API already only serves
-// JSON. The rest of Helmet's headers (X-Frame-Options, nosniff, HSTS, etc.) apply.
+// the API already only serves JSON. The rest of Helmet's headers
+// (X-Frame-Options, nosniff, HSTS, etc.) apply.
 app.use(helmet({ contentSecurityPolicy: false }));
 
 // Parse httpOnly auth cookies (df_token) for cookie-based authentication.

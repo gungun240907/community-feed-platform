@@ -56,7 +56,7 @@ const sessionSchema = new mongoose.Schema({
   },
   loginMethod: {
     type: String,
-    enum: ['password', 'otp', 'trusted_device', 'firebase'],
+    enum: ['password', 'otp', 'trusted_device'],
     default: 'password',
   },
 }, {

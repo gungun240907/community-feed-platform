@@ -31,7 +31,7 @@ const loginLogSchema = new mongoose.Schema({
   },
   method: {
     type: String,
-    enum: ['password', 'otp', 'trusted_device', 'firebase_phone'],
+    enum: ['password', 'otp', 'trusted_device'],
     default: 'password',
   },
   success: {

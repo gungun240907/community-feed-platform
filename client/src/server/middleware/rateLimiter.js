@@ -85,14 +85,6 @@ const forgotPasswordLimiter = limiter(
   'Too many password reset requests. Please try again later.'
 );
 
-/** Firebase phone-login endpoint: prevent ID-token replay / brute forcing. */
-const firebaseLoginLimiter = limiter(
-  'firebase-login',
-  envInt('RATE_LIMIT_FIREBASE_LOGIN_WINDOW_MS', 15 * 60 * 1000),
-  envInt('RATE_LIMIT_FIREBASE_LOGIN_MAX', 50),
-  'Too many login attempts. Please try again later.'
-);
-
 module.exports = {
   otpRequestLimiter,
   otpVerifyLimiter,
@@ -100,5 +92,4 @@ module.exports = {
   authLoginLimiter,
   verifyLoginOtpLimiter,
   forgotPasswordLimiter,
-  firebaseLoginLimiter,
 };

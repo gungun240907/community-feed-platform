@@ -7,7 +7,6 @@ const { generatePassword } = require('../utils/passwordGenerator');
 const { parseUserAgent, generateDeviceFingerprint } = require('../utils/userAgentParser');
 const { getIpLocation } = require('../utils/ipLocation');
 const { sendNewDeviceLoginAlert, sendPasswordResetEmail } = require('../utils/emailService');
-const { sendPasswordResetSms } = require('../utils/smsService');
 const { createAndSendOtp, verifyOtp } = require('../utils/otpService');
 
 const SESSION_DURATION_MS = parseInt(process.env.SESSION_DURATION_MS || (7 * 24 * 60 * 60 * 1000));
@@ -344,6 +343,14 @@ async function forgotPassword(req, res, next) {
       });
     }
 
+    // TODO: SMS delivery was removed with MSG91. Phone-based password reset
+    // is disabled until a new SMS provider is added. Keep anti-enumeration.
+    if (!email || !email.trim()) {
+      return res.json({
+        message: 'If an account matches that information, a new password has been sent.',
+      });
+    }
+
     const now = new Date();
     if (user.lastPasswordResetRequest) {
       const lastRequest = new Date(user.lastPasswordResetRequest);
@@ -361,12 +368,7 @@ async function forgotPassword(req, res, next) {
 
     const newPassword = generatePassword();
 
-    let delivered = false;
-    if (email && email.trim()) {
-      delivered = await sendPasswordResetEmail(user, newPassword);
-    } else {
-      delivered = await sendPasswordResetSms(user, newPassword);
-    }
+    const delivered = await sendPasswordResetEmail(user, newPassword);
 
     if (!delivered) {
       return res.status(503).json({ error: 'Unable to deliver the new password. Please try again later.' });
@@ -377,7 +379,7 @@ async function forgotPassword(req, res, next) {
     await user.save();
 
     res.json({
-      message: 'A new password has been sent to your registered email/phone.',
+      message: 'A new password has been sent to your registered email.',
     });
   } catch (error) {
     next(error);

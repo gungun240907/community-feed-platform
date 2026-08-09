@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { LogIn, Loader2, Eye, EyeOff, ArrowLeft, Shield, Smartphone, Monitor, Globe, CheckCircle, X, Phone, Mail } from 'lucide-react';
+import { LogIn, Loader2, Eye, EyeOff, ArrowLeft, Shield, Smartphone, Monitor, Globe, CheckCircle, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/I18nContext';
 import { authAPI } from '../utils/api';
-import PhoneAuth from '../components/PhoneAuth';
 
 // Mirrors the server default (OTP_RESEND_COOLDOWN_SECONDS). The server is the
 // source of truth; on a 429 it returns retryAfterMs which we honor.
@@ -18,7 +17,6 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [authMethod, setAuthMethod] = useState('password');
 
   const [requiresOtp, setRequiresOtp] = useState(false);
   const [otp, setOtp] = useState('');
@@ -234,33 +232,6 @@ export default function LoginPage() {
         </a>
 
         <div className="card p-6 sm:p-8 space-y-6">
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-surface-100">
-            <button
-              type="button"
-              onClick={() => setAuthMethod('password')}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all ${
-                authMethod === 'password'
-                  ? 'bg-white text-surface-900 shadow-sm'
-                  : 'text-surface-500 hover:text-surface-700'
-              }`}
-            >
-              <Mail size={15} className="inline" />
-              {t('auth.login.title')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setAuthMethod('phone')}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all ${
-                authMethod === 'phone'
-                  ? 'bg-white text-surface-900 shadow-sm'
-                  : 'text-surface-500 hover:text-surface-700'
-              }`}
-            >
-              <Phone size={15} className="inline" />
-              {t('phoneAuth.methodLabel')}
-            </button>
-          </div>
-
           <div className="text-center space-y-2">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mx-auto shadow-lg shadow-primary-500/20">
               <LogIn size={22} className="text-white" />
@@ -269,9 +240,7 @@ export default function LoginPage() {
             <p className="text-sm text-surface-500">{t('auth.login.subtitle')}</p>
           </div>
 
-          {authMethod === 'password' ? (
-            <>
-              {error && (
+          {error && (
                 <div className="bg-red-50 text-red-600 text-sm p-3.5 rounded-xl border border-red-200 animate-slide-down flex items-start gap-2">
                   <span className="mt-0.5">•</span>
                   <span>{error}</span>
@@ -347,10 +316,6 @@ export default function LoginPage() {
           >
             {t('auth.register.button')}
           </a>
-            </>
-          ) : (
-            <PhoneAuth onComplete={() => router.push('/')} />
-          )}
         </div>
       </div>
     </div>

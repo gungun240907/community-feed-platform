@@ -1,7 +1,6 @@
 const crypto = require('crypto');
 const Otp = require('../models/Otp');
 const { sendOtpEmail } = require('./emailService');
-const { sendOtpSms } = require('./smsService');
 
 /**
  * Production-grade OTP service.
@@ -202,11 +201,18 @@ async function createAndSendOtp({ user, purpose, type = 'email', ip = '', delive
   });
 
   if (deliver) {
+    // TODO: SMS delivery was removed with MSG91. Phone-delivered OTPs fail
+    // closed until a new SMS provider is added.
+    if (type === 'phone') {
+      await Otp.deleteMany({ _id: otpDoc._id });
+      throw otpError(503, 'SMS delivery is not configured. Please use your email instead.', {
+        code: 'SMS_NOT_CONFIGURED',
+      });
+    }
+
     let delivered = false;
     try {
-      delivered = type === 'phone'
-        ? await sendOtpSms(user, code, purpose)
-        : await sendOtpEmail({ user, otp: code, purpose });
+      delivered = await sendOtpEmail({ user, otp: code, purpose });
     } catch (err) {
       console.error('[otpService] Delivery threw:', err.message);
       delivered = false;

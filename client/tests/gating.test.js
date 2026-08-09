@@ -16,5 +16,5 @@ test('production gating: dev-activate blocked, forgot-password 503 without SMTP'
   const out = JSON.parse(lines[lines.length - 1]);
 
   assert.strictEqual(out.devActivate, 404, 'dev-activate must be disabled when NODE_ENV=production');
-  assert.strictEqual(out.forgotPassword, 503, 'forgot-password must return 503 when email/SMS delivery is unconfigured');
+  assert.strictEqual(out.forgotPassword, 503, 'forgot-password must return 503 when email delivery is unconfigured');
 });

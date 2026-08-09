@@ -75,18 +75,6 @@ export function AuthProvider({ children }) {
     return userData;
   }, []);
 
-  /** Persist a session established via Firebase phone authentication. */
-  const firebaseLogin = useCallback(async (idToken) => {
-    const response = await authAPI.firebaseLogin({ idToken });
-    const { user: userData, token: newToken } = response.data;
-    localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-    setToken(newToken);
-    setFeedVersion((v) => v + 1);
-    return userData;
-  }, []);
-
   const logout = useCallback(async () => {
     try {
       await sessionAPI.logout();
@@ -122,7 +110,6 @@ export function AuthProvider({ children }) {
     login,
     verifyLoginOtp,
     register,
-    firebaseLogin,
     logout,
     updateUser,
     refreshUser: () => {

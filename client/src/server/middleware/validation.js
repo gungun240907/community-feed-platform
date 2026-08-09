@@ -30,14 +30,6 @@ const resendLoginOtpSchema = z.object({
   password: z.string().min(1, { message: 'Password is required' }).max(200),
 });
 
-/** Body for /api/auth/firebase-login — a Firebase ID token from the client SDK. */
-const firebaseLoginSchema = z.object({
-  idToken: z
-    .string()
-    .min(20, { message: 'A Firebase ID token is required' })
-    .max(8192, { message: 'Invalid Firebase ID token' }),
-});
-
 /**
  * Body for /api/auth/register. Field rules mirror the User model so invalid
  * payloads fail fast with a 400 before touching the database.
@@ -93,6 +85,5 @@ module.exports = {
   otpVerifySchema,
   otpResendSchema,
   resendLoginOtpSchema,
-  firebaseLoginSchema,
   registerSchema,
 };

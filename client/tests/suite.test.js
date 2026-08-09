@@ -4,7 +4,6 @@ const crypto = require('crypto');
 
 const { boot, api, UA_A, UA_B } = require('./helpers');
 const otpService = require('../src/server/utils/otpService');
-const firebaseService = require('../src/server/utils/firebaseService');
 
 const ctx = {};
 
@@ -697,59 +696,51 @@ test('language switch sends OTP via email (fr) and changes the language', async 
   await User.findByIdAndUpdate(ctx.users.alice._id, { language: 'en' });
 });
 
-test('language switch to a phone-only language requires a phone number', async () => {
-  const r = await api(ctx.base, 'POST', '/api/language/request', {
-    token: ctx.tokens.alice,
-    body: { language: 'es' },
-  });
-  assert.strictEqual(r.status, 400);
-  assert.strictEqual(r.data.missingField, 'phone');
-});
-
-test('language switch to a phone language is verified via Firebase SMS', async () => {
+test('language switch requires a registered email address', async () => {
   const User = ctx.mongoose.model('User');
-  const phone = '+919876543210';
-  await User.findByIdAndUpdate(ctx.users.alice._id, { phone });
-
-  process.env.FIREBASE_API_KEY = 'test-firebase-key';
-
+  await User.findByIdAndUpdate(ctx.users.alice._id, { $unset: { email: 1 } });
   try {
-    const request = await api(ctx.base, 'POST', '/api/language/request', {
+    const r = await api(ctx.base, 'POST', '/api/language/request', {
       token: ctx.tokens.alice,
       body: { language: 'es' },
     });
-    assert.strictEqual(request.status, 200);
-    assert.strictEqual(request.data.type, 'phone');
-    assert.strictEqual(request.data.delivery.channel, 'sms');
-    assert.strictEqual(request.data.code, undefined, 'the SMS code must never leave Firebase');
-    assert.match(request.data.delivery.contact, /\*\*\*\*/, 'the delivery phone must be masked');
-
-    firebaseService._setPhoneVerifier(async ({ phoneNumber }) => ({ phoneNumber, idToken: 'test-id-token' }));
-
-    const ok = await api(ctx.base, 'POST', '/api/language/verify', {
-      token: ctx.tokens.alice,
-      body: { language: 'es', verificationId: 'session-1', code: '123456' },
-    });
-    assert.strictEqual(ok.status, 200, `expected 200: ${ok.data?.error || ok.status}`);
-    assert.strictEqual(ok.data.user.language, 'es');
-
-    firebaseService._setPhoneVerifier(async () => ({ phoneNumber: '+919999999999', idToken: 'x' }));
-    const mismatch = await api(ctx.base, 'POST', '/api/language/verify', {
-      token: ctx.tokens.alice,
-      body: { language: 'pt', verificationId: 'session-1', code: '123456' },
-    });
-    assert.strictEqual(mismatch.status, 400, 'a code tied to a different phone must be rejected');
-
-    const noCreds = await api(ctx.base, 'POST', '/api/language/verify', {
-      token: ctx.tokens.alice,
-      body: { language: 'pt' },
-    });
-    assert.strictEqual(noCreds.status, 400, 'verification requires otp or verificationId+code');
+    assert.strictEqual(r.status, 400);
+    assert.strictEqual(r.data.missingField, 'email');
   } finally {
-    firebaseService._setPhoneVerifier(null);
-    delete process.env.FIREBASE_API_KEY;
-    await User.findByIdAndUpdate(ctx.users.alice._id, { $unset: { phone: 1 }, language: 'en' });
+    await User.findByIdAndUpdate(ctx.users.alice._id, { email: 'alice@test.com' });
   }
+});
+
+test('language switch to a non-French language is verified via email OTP', async () => {
+  const request = await api(ctx.base, 'POST', '/api/language/request', {
+    token: ctx.tokens.alice,
+    body: { language: 'es' },
+  });
+  assert.strictEqual(request.status, 200);
+  assert.strictEqual(request.data.type, 'email');
+  assert.strictEqual(request.data.channel, 'email');
+  assert.strictEqual(request.data.delivery.channel, 'email');
+  assert.strictEqual(request.data.code, undefined, 'the OTP must never be returned');
+  assert.strictEqual(request.data.delivery.contact, 'alice@test.com');
+
+  const preview = otpService.getTestOtpPreview(ctx.users.alice._id, 'language_switch');
+  assert.ok(preview, 'language OTP preview unavailable (NODE_ENV must be "test")');
+
+  const verify = await api(ctx.base, 'POST', '/api/language/verify', {
+    token: ctx.tokens.alice,
+    body: { language: 'es', otp: preview.code },
+  });
+  assert.strictEqual(verify.status, 200);
+  assert.strictEqual(verify.data.user.language, 'es');
+
+  const User = ctx.mongoose.model('User');
+  await User.findByIdAndUpdate(ctx.users.alice._id, { language: 'en' });
+
+  const noCreds = await api(ctx.base, 'POST', '/api/language/verify', {
+    token: ctx.tokens.alice,
+    body: { language: 'es' },
+  });
+  assert.strictEqual(noCreds.status, 400, 'verification requires an otp');
 });
 
 test('language switch rejects invalid language', async () => {
