@@ -576,29 +576,34 @@ test('close-vote requires 250 reputation and forbids own question', async () => 
   assert.strictEqual(own.status, 400);
 });
 
-test('reporting requires 500 reputation', async () => {
-  const target = await post(ctx.tokens.bob, 'reportable post #nodejs');
+test('reporting a post requires 500 reputation and follows report rules', async () => {
+  // alice creates the post; guru (>=500 reputation) reports it.
+  const target = await post(ctx.tokens.alice, 'reportable post #nodejs');
   const targetId = target.data.post._id;
 
-  const denied = await api(ctx.base, 'POST', `/api/admin/posts/${targetId}/report`, {
-    token: ctx.tokens.bob,
-    body: { reason: 'spam' },
-  });
-  assert.strictEqual(denied.status, 403);
-
-  const ok = await api(ctx.base, 'POST', `/api/admin/posts/${targetId}/report`, {
+  // Reporting is a privilege unlocked at 500 reputation.
+  const byHighRep = await api(ctx.base, 'POST', `/api/admin/posts/${targetId}/report`, {
     token: ctx.tokens.guru,
     body: { reason: 'spam' },
   });
-  assert.strictEqual(ok.status, 201);
+  assert.strictEqual(byHighRep.status, 201);
 
+  // Duplicate report by the same user is rejected.
   const duplicate = await api(ctx.base, 'POST', `/api/admin/posts/${targetId}/report`, {
     token: ctx.tokens.guru,
     body: { reason: 'spam' },
   });
   assert.strictEqual(duplicate.status, 409);
 
-  const ownPost = await post(ctx.tokens.guru, 'my own post #nodejs');
+  // A user below 500 reputation cannot report (privilege gate).
+  const lowRep = await api(ctx.base, 'POST', `/api/admin/posts/${targetId}/report`, {
+    token: ctx.tokens.bob,
+    body: { reason: 'spam' },
+  });
+  assert.strictEqual(lowRep.status, 403);
+
+  // A user cannot report their own post.
+  const ownPost = await post(ctx.tokens.guru, 'my own reportable post #nodejs');
   const own = await api(ctx.base, 'POST', `/api/admin/posts/${ownPost.data.post._id}/report`, {
     token: ctx.tokens.guru,
     body: { reason: 'spam' },
@@ -696,51 +701,71 @@ test('language switch sends OTP via email (fr) and changes the language', async 
   await User.findByIdAndUpdate(ctx.users.alice._id, { language: 'en' });
 });
 
-test('language switch requires a registered email address', async () => {
+test('language switch to a non-French language requires a registered mobile number', async () => {
   const User = ctx.mongoose.model('User');
-  await User.findByIdAndUpdate(ctx.users.alice._id, { $unset: { email: 1 } });
-  try {
-    const r = await api(ctx.base, 'POST', '/api/language/request', {
-      token: ctx.tokens.alice,
-      body: { language: 'es' },
-    });
-    assert.strictEqual(r.status, 400);
-    assert.strictEqual(r.data.missingField, 'email');
-  } finally {
-    await User.findByIdAndUpdate(ctx.users.alice._id, { email: 'alice@test.com' });
-  }
+  await User.findByIdAndUpdate(ctx.users.alice._id, { $unset: { phone: 1 } });
+  const denied = await api(ctx.base, 'POST', '/api/language/request', {
+    token: ctx.tokens.alice,
+    body: { language: 'es' },
+  });
+  assert.strictEqual(denied.status, 400);
+  assert.strictEqual(denied.data.missingField, 'phone');
 });
 
-test('language switch to a non-French language is verified via email OTP', async () => {
-  const request = await api(ctx.base, 'POST', '/api/language/request', {
-    token: ctx.tokens.alice,
-    body: { language: 'es' },
-  });
-  assert.strictEqual(request.status, 200);
-  assert.strictEqual(request.data.type, 'email');
-  assert.strictEqual(request.data.channel, 'email');
-  assert.strictEqual(request.data.delivery.channel, 'email');
-  assert.strictEqual(request.data.code, undefined, 'the OTP must never be returned');
-  assert.strictEqual(request.data.delivery.contact, 'alice@test.com');
-
-  const preview = otpService.getTestOtpPreview(ctx.users.alice._id, 'language_switch');
-  assert.ok(preview, 'language OTP preview unavailable (NODE_ENV must be "test")');
-
-  const verify = await api(ctx.base, 'POST', '/api/language/verify', {
-    token: ctx.tokens.alice,
-    body: { language: 'es', otp: preview.code },
-  });
-  assert.strictEqual(verify.status, 200);
-  assert.strictEqual(verify.data.user.language, 'es');
-
+test('language switch to a non-French language is verified via mobile (SMS/WhatsApp) OTP', async () => {
   const User = ctx.mongoose.model('User');
-  await User.findByIdAndUpdate(ctx.users.alice._id, { language: 'en' });
+  await User.findByIdAndUpdate(ctx.users.alice._id, { phone: '+15550001111' });
 
-  const noCreds = await api(ctx.base, 'POST', '/api/language/verify', {
-    token: ctx.tokens.alice,
-    body: { language: 'es' },
-  });
-  assert.strictEqual(noCreds.status, 400, 'verification requires an otp');
+  // Ensure no leftover (unverified) language_switch OTP from a prior test blocks
+  // this request via the resend cooldown.
+  await ctx.mongoose.model('Otp').deleteMany({ user: ctx.users.alice._id, purpose: 'language_switch' });
+
+  // Simulate a configured, working WhatsApp provider so the non-French OTP is
+  // actually delivered via WhatsApp (the intended path). We mock the Meta Graph
+  // API call so the test does not depend on network/credentials, and we restore
+  // everything afterwards to avoid leaking into other tests.
+  process.env.WHATSAPP_ACCESS_TOKEN = 'test-token';
+  process.env.WHATSAPP_PHONE_NUMBER_ID = '12345';
+  const axios = require('axios');
+  const originalPost = axios.post;
+  axios.post = async () => ({ data: { messages: [{ id: 'wamid.test' }] } });
+
+  try {
+    const request = await api(ctx.base, 'POST', '/api/language/request', {
+      token: ctx.tokens.alice,
+      body: { language: 'pt' },
+    });
+    assert.strictEqual(request.status, 200);
+    assert.strictEqual(request.data.type, 'phone', 'requested type stays phone');
+    assert.strictEqual(request.data.channel, 'phone', 'actual delivery channel is phone (WhatsApp)');
+    assert.strictEqual(request.data.delivery.channel, 'phone');
+    assert.strictEqual(request.data.delivery.method, 'whatsapp');
+    assert.strictEqual(request.data.code, undefined, 'the OTP must never be returned');
+    assert.strictEqual(request.data.delivery.contact, '+15550001111');
+
+    const preview = otpService.getTestOtpPreview(ctx.users.alice._id, 'language_switch');
+    assert.ok(preview, 'language OTP preview unavailable (NODE_ENV must be "test")');
+
+    const verify = await api(ctx.base, 'POST', '/api/language/verify', {
+      token: ctx.tokens.alice,
+      body: { language: 'pt', otp: preview.code },
+    });
+    assert.strictEqual(verify.status, 200);
+    assert.strictEqual(verify.data.user.language, 'pt');
+
+    await User.findByIdAndUpdate(ctx.users.alice._id, { language: 'en' });
+
+    const noCreds = await api(ctx.base, 'POST', '/api/language/verify', {
+      token: ctx.tokens.alice,
+      body: { language: 'pt' },
+    });
+    assert.strictEqual(noCreds.status, 400, 'verification requires an otp');
+  } finally {
+    axios.post = originalPost;
+    delete process.env.WHATSAPP_ACCESS_TOKEN;
+    delete process.env.WHATSAPP_PHONE_NUMBER_ID;
+    await User.findByIdAndUpdate(ctx.users.alice._id, { $unset: { phone: 1 } });
+  }
 });
 
 test('language switch rejects invalid language', async () => {

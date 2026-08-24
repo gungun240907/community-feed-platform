@@ -152,9 +152,9 @@ export default function CreatePost({ onPostCreated }) {
                 key={value}
                 type="button"
                 onClick={() => setPostType(value)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                  postType === value ? 'bg-primary-600 text-white shadow-sm' : 'bg-surface-100 text-surface-500 hover:bg-surface-200'
-                }`}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                   postType === value ? 'bg-primary-600 text-white shadow-sm' : 'bg-surface-100 dark:bg-[#253341] text-surface-500 dark:text-[#8b98a5] hover:bg-surface-200 dark:hover:bg-[#2c3640]'
+                 }`}
               >
                 <Icon size={13} />
                 {t(`post.type.${value}`)}
@@ -163,7 +163,7 @@ export default function CreatePost({ onPostCreated }) {
           </div>
 
           {postType === 'snippet' && (
-            <div className="mb-2 rounded-xl border border-surface-200 bg-surface-50 p-3 space-y-2 animate-slide-down">
+             <div className="mb-2 rounded-xl border border-surface-200 dark:border-[#38444d] bg-surface-50 dark:bg-[#253341] p-3 space-y-2 animate-slide-down">
               <div className="flex items-center gap-2">
                 <label htmlFor="snippet-language" className="text-xs font-medium text-surface-500">
                   {t('post.snippet.language')}

@@ -121,7 +121,7 @@ export default function PhoneInput({ value, onChange, placeholder, className }) 
           <ChevronDown size={14} className={`text-surface-400 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         {open && (
-          <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-surface-200 z-30 animate-scale-in overflow-hidden">
+          <div className="absolute top-full left-0 mt-1 w-72 bg-card rounded-xl shadow-xl border border-surface-200 z-30 animate-scale-in overflow-hidden">
             <div className="p-2 border-b border-surface-100">
               <input
                 type="text"

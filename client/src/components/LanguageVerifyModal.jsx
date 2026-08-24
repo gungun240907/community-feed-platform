@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Loader2, Send, AlertCircle, Mail } from 'lucide-react';
+import { X, Loader2, Send, AlertCircle, Mail, Phone } from 'lucide-react';
 import { languageAPI } from '../utils/api';
 import { useTranslation } from '../context/I18nContext';
 
@@ -9,6 +9,7 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
   const { t } = useTranslation();
   const [step, setStep] = useState('request');
   const [otp, setOtp] = useState('');
+  const [channel, setChannel] = useState('email');
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -17,7 +18,8 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
     setSending(true);
     setError('');
     try {
-      await languageAPI.request(targetLang);
+      const res = await languageAPI.request(targetLang);
+      setChannel(res?.data?.channel === 'phone' ? 'phone' : 'email');
       setStep('verify');
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to send OTP');
@@ -43,7 +45,7 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-scale-in" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-card rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-scale-in" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-lg text-surface-900">{t('language.verify.title')}</h3>
           <button className="touch-btn rounded-xl text-surface-400 hover:text-red-500 hover:bg-red-50 transition-colors" onClick={onClose} title="Close">
@@ -75,8 +77,8 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
         ) : (
           <div className="space-y-4">
             <div className="flex items-center gap-2.5 p-3 rounded-xl text-sm bg-primary-50 text-primary-700 border border-primary-200">
-              <Mail size={16} />
-              <span>{t('language.verify.emailOTP')}</span>
+              {channel === 'phone' ? <Phone size={16} /> : <Mail size={16} />}
+              <span>{t(channel === 'phone' ? 'language.verify.phoneOTP' : 'language.verify.emailOTP')}</span>
             </div>
 
             <div>

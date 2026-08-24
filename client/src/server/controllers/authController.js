@@ -6,7 +6,7 @@ const { generateToken, getClientIp } = require('../middleware/auth');
 const { generatePassword } = require('../utils/passwordGenerator');
 const { parseUserAgent, generateDeviceFingerprint } = require('../utils/userAgentParser');
 const { getIpLocation } = require('../utils/ipLocation');
-const { sendNewDeviceLoginAlert, sendPasswordResetEmail } = require('../utils/emailService');
+const { sendNewDeviceLoginAlert, sendPasswordResetEmail, sendPasswordResetSms } = require('../utils/emailService');
 const { createAndSendOtp, verifyOtp } = require('../utils/otpService');
 
 const SESSION_DURATION_MS = parseInt(process.env.SESSION_DURATION_MS || (7 * 24 * 60 * 60 * 1000));
@@ -100,9 +100,16 @@ async function login(req, res, next) {
       isTrusted: true,
     });
 
-    const totalActiveSessions = await Session.countDocuments({ user: user._id, isRevoked: false });
+    // Require OTP for an unrecognized device, EXCEPT on the user's genuine
+    // first-ever login (they have no previously trusted device on record).
+    // This closes the hole where revoking all active sessions
+    // (totalActiveSessions === 0) previously let a new device skip OTP.
+    const hasTrustedDeviceHistory = (await Session.countDocuments({
+      user: user._id,
+      isTrusted: true,
+    })) > 0;
 
-    if (knownSession || totalActiveSessions === 0) {
+    if (knownSession || !hasTrustedDeviceHistory) {
       const sessionId = crypto.randomBytes(24).toString('hex');
       const token = generateToken(user._id, sessionId);
 
@@ -343,14 +350,7 @@ async function forgotPassword(req, res, next) {
       });
     }
 
-    // TODO: SMS delivery was removed with MSG91. Phone-based password reset
-    // is disabled until a new SMS provider is added. Keep anti-enumeration.
-    if (!email || !email.trim()) {
-      return res.json({
-        message: 'If an account matches that information, a new password has been sent.',
-      });
-    }
-
+    // Enforce the once-per-day limit for BOTH email and phone resets.
     const now = new Date();
     if (user.lastPasswordResetRequest) {
       const lastRequest = new Date(user.lastPasswordResetRequest);
@@ -366,9 +366,19 @@ async function forgotPassword(req, res, next) {
       }
     }
 
+    const channel = email && email.trim() ? 'email' : 'phone';
     const newPassword = generatePassword();
 
-    const delivered = await sendPasswordResetEmail(user, newPassword);
+    // Deliver the new password via the requested channel. For phone-based
+    // resets we attempt SMS first and fall back to email when no SMS provider
+    // is configured, so the reset still completes.
+    let delivered = false;
+    if (channel === 'email') {
+      delivered = await sendPasswordResetEmail(user, newPassword);
+    } else {
+      delivered = await sendPasswordResetSms(user, newPassword);
+      if (!delivered) delivered = await sendPasswordResetEmail(user, newPassword);
+    }
 
     if (!delivered) {
       return res.status(503).json({ error: 'Unable to deliver the new password. Please try again later.' });
@@ -378,9 +388,14 @@ async function forgotPassword(req, res, next) {
     user.lastPasswordResetRequest = now;
     await user.save();
 
-    res.json({
-      message: 'A new password has been sent to your registered email.',
-    });
+    const response = {
+      message:
+        channel === 'email'
+          ? 'A new password has been sent to your registered email.'
+          : 'A new password has been sent to your registered mobile number.',
+    };
+
+    res.json(response);
   } catch (error) {
     next(error);
   }

@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const whatsappService = require('./whatsappService');
 
 let transporter = null;
 
@@ -268,4 +269,31 @@ async function sendPasswordResetEmail(user, newPassword) {
   }
 }
 
-module.exports = { sendSubscriptionConfirmation, sendSupportEmail, sendNewDeviceLoginAlert, sendOtpEmail, sendPasswordResetEmail };
+async function sendOtpSms({ user, otp, purpose }) {
+  if (!user.phone) {
+    console.log('[emailService] No phone number; cannot deliver OTP via WhatsApp.');
+    return false;
+  }
+  if (whatsappService.isConfigured()) {
+    return whatsappService.sendOtp(user.phone, otp);
+  }
+  console.log('[emailService] WhatsApp not configured; OTP will fall back to email delivery.');
+  return false;
+}
+
+async function sendPasswordResetSms(user, newPassword) {
+  if (!user.phone) {
+    console.log('[emailService] No phone number; cannot deliver password reset via WhatsApp.');
+    return false;
+  }
+  if (whatsappService.isConfigured()) {
+    const delivered = await whatsappService.sendPasswordReset(user.phone, newPassword);
+    if (delivered) return true;
+    console.log('[emailService] WhatsApp password reset failed; falling back to email.');
+  } else {
+    console.log('[emailService] WhatsApp not configured; falling back to email for password reset.');
+  }
+  return sendPasswordResetEmail(user, newPassword);
+}
+
+module.exports = { sendSubscriptionConfirmation, sendSupportEmail, sendNewDeviceLoginAlert, sendOtpEmail, sendPasswordResetEmail, sendOtpSms, sendPasswordResetSms };

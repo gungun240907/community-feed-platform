@@ -15,8 +15,7 @@ export default function useInfiniteScroll(fetchFn, options = {}) {
   const [error, setError] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const observerRef = useRef(null);
-  const sentinelRef = useRef(null);
+  const [sentinel, setSentinel] = useState(null);
   const hasMoreRef = useRef(hasMore);
   const isLoadingRef = useRef(isLoading);
 
@@ -65,8 +64,7 @@ export default function useInfiniteScroll(fetchFn, options = {}) {
   }, [page, loadData]);
 
   useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
+    if (!sentinel) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -77,9 +75,9 @@ export default function useInfiniteScroll(fetchFn, options = {}) {
       { threshold: 0.1, rootMargin: '200px' }
     );
 
-    observer.observe(el);
+    observer.observe(sentinel);
     return () => observer.disconnect();
-  }, []);
+  }, [sentinel]);
 
   const refresh = useCallback(() => {
     setIsRefreshing(true);
@@ -107,7 +105,7 @@ export default function useInfiniteScroll(fetchFn, options = {}) {
     isRefreshing,
     error,
     hasMore,
-    lastElementRef: sentinelRef,
+    lastElementRef: setSentinel,
     refresh,
     appendPost,
     removePost,

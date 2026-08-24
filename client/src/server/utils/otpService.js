@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const Otp = require('../models/Otp');
-const { sendOtpEmail } = require('./emailService');
+const { sendOtpEmail, sendOtpSms } = require('./emailService');
+const whatsappService = require('./whatsappService');
 
 /**
  * Production-grade OTP service.
@@ -200,19 +201,32 @@ async function createAndSendOtp({ user, purpose, type = 'email', ip = '', delive
     resendCount: latest ? latest.resendCount + 1 : 0,
   });
 
+  let delivered = false;
+  let deliveredVia = null; // 'whatsapp' | 'email' — the channel actually used
   if (deliver) {
-    // TODO: SMS delivery was removed with MSG91. Phone-delivered OTPs fail
-    // closed until a new SMS provider is added.
-    if (type === 'phone') {
-      await Otp.deleteMany({ _id: otpDoc._id });
-      throw otpError(503, 'SMS delivery is not configured. Please use your email instead.', {
-        code: 'SMS_NOT_CONFIGURED',
-      });
-    }
-
-    let delivered = false;
     try {
-      delivered = await sendOtpEmail({ user, otp: code, purpose });
+      if (type === 'phone') {
+        // Prefer WhatsApp for phone-delivered OTPs. When WhatsApp is
+        // unconfigured or the send fails, fall back to email so verification
+        // still works.
+        const whatsappConfigured = whatsappService.isConfigured();
+        const smsOk = await sendOtpSms({ user, otp: code, purpose });
+        if (smsOk) {
+          delivered = true;
+          deliveredVia = 'whatsapp';
+        } else {
+          if (whatsappConfigured) {
+            console.warn(
+              '[otpService] WhatsApp delivery attempted but failed; falling back to email.'
+            );
+          }
+          delivered = await sendOtpEmail({ user, otp: code, purpose });
+          deliveredVia = 'email';
+        }
+      } else {
+        delivered = await sendOtpEmail({ user, otp: code, purpose });
+        deliveredVia = 'email';
+      }
     } catch (err) {
       console.error('[otpService] Delivery threw:', err.message);
       delivered = false;
@@ -233,6 +247,7 @@ async function createAndSendOtp({ user, purpose, type = 'email', ip = '', delive
     expiresAt,
     purpose,
     type,
+    deliveredVia,
     retryAfterMs: 0,
   };
 }

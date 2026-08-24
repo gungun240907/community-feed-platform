@@ -187,11 +187,11 @@ const PostCard = memo(function PostCard({ post, onUpdate, onDelete }) {
           {showMenu && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-xl border border-surface-200 py-1.5 z-20 animate-scale-in overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-card dark:bg-[#1e2732] dark:border-[#38444d] rounded-xl shadow-xl border border-surface-200 py-1.5 z-20 animate-scale-in overflow-hidden">
                 {isOwnPost && (
                   <>
                     <button
-                      className="w-full px-4 py-2.5 text-left text-sm hover:bg-surface-50 flex items-center gap-2.5 text-surface-700 transition-colors"
+                       className="w-full px-4 py-2.5 text-left text-sm hover:bg-surface-50 dark:hover:bg-[#253341] flex items-center gap-2.5 text-surface-700 dark:text-[#e7e9ea] transition-colors"
                       onClick={() => { setShowMenu(false); setEditContent(post.content); setEditMediaUrls(post.mediaUrls || []); setIsEditing(true); }}
                     >
                       <Edit3 size={15} className="text-surface-400" /> {t('post.edit')}
@@ -231,7 +231,7 @@ const PostCard = memo(function PostCard({ post, onUpdate, onDelete }) {
               <img
                 src={url}
                 alt={`Media ${index + 1}`}
-                className="w-full max-h-[500px] object-contain bg-surface-100 rounded-xl"
+                   className="w-full max-h-[500px] object-contain bg-surface-100 dark:bg-[#253341] rounded-xl"
                 loading="lazy"
                 onError={(e) => { e.target.style.display = 'none'; }}
               />
@@ -305,7 +305,7 @@ const PostCard = memo(function PostCard({ post, onUpdate, onDelete }) {
 
       {isEditing && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in overflow-y-auto">
-          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 animate-scale-in my-8">
+          <div className="bg-card dark:bg-[#1e2732] dark:border dark:border-[#38444d] rounded-2xl p-6 max-w-lg w-full shadow-float space-y-4 animate-scale-in my-8">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-lg text-surface-900">{t('post.editModal.title')}</h3>
               <button className="touch-btn rounded-xl text-surface-400 hover:text-surface-600 hover:bg-surface-100 transition-all" onClick={() => setIsEditing(false)}>
@@ -370,9 +370,9 @@ const PostCard = memo(function PostCard({ post, onUpdate, onDelete }) {
 
       {showConfirmDelete && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in overflow-y-auto">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-scale-in">
+          <div className="bg-card dark:bg-[#1e2732] dark:border dark:border-[#38444d] rounded-2xl p-6 max-w-sm w-full shadow-float space-y-4 animate-scale-in">
             <div className="flex items-center gap-3 text-red-600">
-              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-500/15 flex items-center justify-center">
                 <AlertTriangle size={22} />
               </div>
               <div>
@@ -392,7 +392,7 @@ const PostCard = memo(function PostCard({ post, onUpdate, onDelete }) {
 
       {showReportModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in overflow-y-auto">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-scale-in">
+          <div className="bg-card dark:bg-[#1e2732] dark:border dark:border-[#38444d] rounded-2xl p-6 max-w-sm w-full shadow-float space-y-4 animate-scale-in">
             <h3 className="font-semibold text-lg text-surface-900">{t('post.reportModal.title')}</h3>
             <select
               className="input-field"

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import fallbackMessages from '../i18n/en.json';
 
 const I18nContext = createContext(null);
 
@@ -42,7 +43,7 @@ export function I18nProvider({ children }) {
     }
     return FALLBACK_LANG;
   });
-  const [messages, setMessages] = useState({});
+  const [messages, setMessages] = useState(fallbackMessages);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -68,7 +69,7 @@ export function I18nProvider({ children }) {
   }, [user, updateUser]);
 
   const t = useCallback((key, defaultValOrParams, params) => {
-    const val = messages[key];
+    const val = messages[key] ?? fallbackMessages[key];
     if (val === undefined) {
       if (typeof defaultValOrParams === 'string') return defaultValOrParams;
       return key;

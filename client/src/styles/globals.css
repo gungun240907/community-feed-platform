@@ -2,176 +2,163 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --s-50: 247 249 250;
+  --s-100: 238 241 243;
+  --s-200: 226 232 237;
+  --s-300: 203 213 225;
+  --s-400: 148 163 184;
+  --s-500: 100 116 139;
+  --s-600: 71 85 105;
+  --s-700: 51 65 85;
+  --s-800: 30 41 59;
+  --s-900: 15 23 42;
+  --card: 255 255 255;
+}
+
+.dark {
+  --s-50: 21 32 43;
+  --s-100: 30 39 50;
+  --s-200: 37 51 65;
+  --s-300: 56 68 77;
+  --s-400: 75 91 107;
+  --s-500: 100 116 139;
+  --s-600: 139 152 165;
+  --s-700: 194 205 216;
+  --s-800: 221 227 234;
+  --s-900: 231 233 234;
+  --card: 30 39 50;
+}
+
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-surface-50 text-surface-900 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
   ::selection {
-    @apply bg-primary-200 text-primary-900;
+    @apply bg-primary-200 text-primary-900 dark:text-white;
   }
 
   *:focus-visible {
     @apply outline-2 outline-offset-2 outline-primary-500;
   }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-300 rounded-full;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-surface-400; }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm
-           hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
+    @apply inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-primary-500 text-white font-semibold text-sm
+           hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2
            transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-           active:scale-[0.97] shadow-sm hover:shadow-md
-           min-h-[44px];
+           active:scale-[0.97] shadow-sm hover:shadow-md min-h-[44px];
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-surface-100 text-surface-700 font-semibold text-sm
+    @apply inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-surface-100 text-surface-700 font-semibold text-sm
            hover:bg-surface-200 focus:outline-none focus:ring-2 focus:ring-surface-300 focus:ring-offset-2
-           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-           active:scale-[0.97] border border-surface-200
-           min-h-[44px];
+           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97] min-h-[44px];
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center px-3 py-2 rounded-xl text-surface-600 font-medium text-sm
+    @apply inline-flex items-center justify-center px-3 py-2 rounded-full text-surface-600 font-medium text-sm
            hover:bg-surface-100 focus:outline-none focus:ring-2 focus:ring-surface-300
-           transition-all duration-200 active:scale-[0.97]
-           min-h-[44px];
+           transition-all duration-200 active:scale-[0.97] min-h-[44px];
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-red-600 text-white font-semibold text-sm
+    @apply inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-red-600 text-white font-semibold text-sm
            hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2
-           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-           active:scale-[0.97] shadow-sm hover:shadow-md
-           min-h-[44px];
+           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97]
+           shadow-sm hover:shadow-md min-h-[44px];
   }
 
   .btn-soft {
-    @apply inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-primary-50 text-primary-700 font-semibold text-sm
+    @apply inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-primary-50 text-primary-700 font-semibold text-sm
            hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:ring-offset-2
-           transition-all duration-200 active:scale-[0.97]
-           min-h-[44px];
+           transition-all duration-200 active:scale-[0.97] min-h-[44px];
   }
 
   .card {
-    @apply bg-white rounded-2xl border border-surface-200/80 shadow-sm;
+    @apply bg-card rounded-2xl border border-surface-200/70 shadow-card;
   }
 
   .card-hover {
-    @apply card transition-all duration-200 hover:shadow-md hover:border-surface-300;
+    @apply card transition-all duration-200 hover:shadow-card-hover hover:border-surface-300;
   }
 
   .card-glass {
-    @apply bg-white/80 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg;
+    @apply bg-card/80 backdrop-blur-xl rounded-2xl border border-surface-200/60 shadow-lg;
   }
 
   .input-field {
-    @apply w-full px-4 py-2.5 rounded-xl border border-surface-300 bg-white text-surface-900
+    @apply w-full px-4 py-3 rounded-xl border border-surface-300 bg-card text-surface-900
            placeholder-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
            transition-all duration-200 text-sm;
   }
 
-  .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  .badge { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold; }
+  .badge-primary { @apply badge bg-primary-100 text-primary-700; }
+  .badge-success { @apply badge bg-emerald-100 text-emerald-700; }
+  .badge-warning { @apply badge bg-amber-100 text-amber-700; }
+  .badge-danger { @apply badge bg-red-100 text-red-700; }
+  .badge-accent { @apply badge bg-accent-100 text-accent-700; }
+
+  .divider { @apply h-px w-full bg-surface-200; }
+
+  .avatar {
+    @apply rounded-full object-cover bg-surface-200 flex items-center justify-center font-bold text-white;
   }
 
-  .badge-primary {
-    @apply badge bg-primary-100 text-primary-700;
+  .nav-link {
+    @apply flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium text-surface-600
+           hover:bg-surface-100 hover:text-surface-900 transition-colors;
   }
 
-  .badge-success {
-    @apply badge bg-emerald-100 text-emerald-700;
-  }
+  .nav-link-active { @apply bg-primary-50 text-primary-700; }
 
-  .badge-warning {
-    @apply badge bg-amber-100 text-amber-700;
-  }
-
-  .badge-danger {
-    @apply badge bg-red-100 text-red-700;
+  .stat-card {
+    @apply card p-4 sm:p-5 flex flex-col gap-1.5;
   }
 }
 
 @layer utilities {
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
-  .text-balance {
-    text-wrap: balance;
-  }
-
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .text-balance { text-wrap: balance; }
   .bg-grid {
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%236366f1' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231d9bf0' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   }
 }
 
-.touch-btn {
-  @apply min-w-[44px] min-h-[44px] flex items-center justify-center;
-}
+.touch-btn { @apply min-w-[44px] min-h-[44px] flex items-center justify-center; }
 
-.prose {
-  @apply max-w-none;
-}
-
+.prose { @apply max-w-none; }
 .prose pre {
   @apply bg-surface-900 text-surface-100 rounded-xl p-4 overflow-x-auto text-sm font-mono border border-surface-800;
 }
+.prose code { @apply bg-primary-50 text-primary-700 rounded-lg px-1.5 py-0.5 text-sm font-mono; }
+.prose pre code { @apply bg-transparent text-inherit p-0; }
+.prose img { @apply rounded-2xl max-h-96 w-auto shadow-sm; }
+.prose a { @apply text-primary-600 hover:text-primary-700 no-underline hover:underline; }
+.prose h1, .prose h2, .prose h3, .prose h4 { @apply text-surface-900 font-bold; }
+.prose blockquote { @apply border-l-4 border-primary-300 bg-primary-50 rounded-r-xl px-4 py-2 text-surface-600; }
+.prose table { @apply border-collapse; }
+.prose th { @apply bg-surface-50 text-surface-700 font-semibold px-3 py-2 border border-surface-200; }
+.prose td { @apply px-3 py-2 border border-surface-200; }
+.prose ul, .prose ol { @apply text-surface-700; }
 
-.prose code {
-  @apply bg-primary-50 text-primary-700 rounded-lg px-1.5 py-0.5 text-sm font-mono;
-}
-
-.prose pre code {
-  @apply bg-transparent text-inherit p-0;
-}
-
-.prose img {
-  @apply rounded-xl max-h-96 w-auto shadow-sm;
-}
-
-.prose a {
-  @apply text-primary-600 hover:text-primary-700 no-underline hover:underline;
-}
-
-.prose h1, .prose h2, .prose h3, .prose h4 {
-  @apply text-surface-900 font-bold;
-}
-
-.prose blockquote {
-  @apply border-l-4 border-primary-300 bg-primary-50 rounded-r-xl px-4 py-2 text-surface-600;
-}
-
-.prose table {
-  @apply border-collapse;
-}
-
-.prose th {
-  @apply bg-surface-50 text-surface-700 font-semibold px-3 py-2 border border-surface-200;
-}
-
-.prose td {
-  @apply px-3 py-2 border border-surface-200;
-}
-
-.prose ul, .prose ol {
-  @apply text-surface-700;
-}
-
-.skeleton {
-  @apply animate-pulse bg-surface-200 rounded-xl;
-}
-
-.skeleton-text {
-  @apply skeleton h-4 w-full;
-}
-
-.skeleton-avatar {
-  @apply skeleton h-10 w-10 rounded-full;
-}
+.skeleton { @apply animate-pulse bg-surface-200 rounded-xl; }
+.skeleton-text { @apply skeleton h-4 w-full; }
+.skeleton-avatar { @apply skeleton h-10 w-10 rounded-full; }

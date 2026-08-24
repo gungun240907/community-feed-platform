@@ -15,31 +15,41 @@ async function requestLanguageSwitch(req, res, next) {
       return res.status(400).json({ error: 'Language is already set to this value' });
     }
 
-    // TODO: Phone/SMS verification was removed (Firebase + MSG91). All
-    // language switches are verified via email OTP until a new SMS provider
-    // is added per the pending instruction.
-    const contact = req.user.email;
+    // Security: French switches are verified via the user's EMAIL, while all
+    // other languages are verified via the registered MOBILE number (SMS).
+    const otpType = language === 'fr' ? 'email' : 'phone';
+    const contact = otpType === 'email' ? req.user.email : req.user.phone;
 
     if (!contact) {
       return res.status(400).json({
-        error: 'No email address found. Please update your profile first.',
-        missingField: 'email',
+        error:
+          otpType === 'email'
+            ? 'No email address found. Please update your profile first.'
+            : 'No mobile number found. Please update your profile first.',
+        missingField: otpType,
       });
     }
 
     const result = await createAndSendOtp({
       user: req.user,
       purpose: 'language_switch',
-      type: 'email',
+      type: otpType,
       ip: getClientIp(req),
     });
 
+    // Report the channel that was ACTUALLY used. When WhatsApp is unconfigured
+    // (or fails) the OTP is emailed, so we must not tell the user it went to
+    // their phone — that would be a misleading UI/explanation mismatch.
+    const deliveredVia = result.deliveredVia; // 'whatsapp' | 'email'
+    const actualChannel = deliveredVia === 'whatsapp' ? 'phone' : 'email';
+    const actualContact = actualChannel === 'phone' ? req.user.phone : req.user.email;
+
     return res.json({
-      message: 'OTP sent to your email.',
-      type: 'email',
-      channel: 'email',
+      message: `OTP sent to your ${actualChannel}${deliveredVia === 'whatsapp' ? ' via WhatsApp' : ''}.`,
+      type: otpType,
+      channel: actualChannel,
       language,
-      delivery: { channel: 'email', contact: req.user.email },
+      delivery: { channel: actualChannel, contact: actualContact, method: deliveredVia },
       retryAfterMs: result.retryAfterMs,
     });
   } catch (error) {

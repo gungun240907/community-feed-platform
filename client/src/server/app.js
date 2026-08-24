@@ -22,6 +22,7 @@ const webhookRoutes = require('./routes/webhook');
 const sessionRoutes = require('./routes/sessions');
 const loginLogRoutes = require('./routes/loginLogs');
 const otpRoutes = require('./routes/otp');
+const whatsappService = require('./utils/whatsappService');
 
 const app = express();
 const server = http.createServer(app);
@@ -98,7 +99,11 @@ app.use('/api/login-logs', loginLogRoutes);
 app.use('/api/otp', otpRoutes);
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    whatsapp: whatsappService.isConfigured(),
+  });
 });
 
 io.use((socket, next) => {
@@ -258,6 +263,11 @@ if (require.main === module) {
   dbPromise.then(() => {
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
+      if (whatsappService.isConfigured()) {
+        console.log('[whatsapp] Configured — phone OTPs will be delivered via WhatsApp when a recipient number is available.');
+      } else {
+        console.log('[whatsapp] NOT configured — phone OTPs will fall back to email. Set WHATSAPP_* env vars to enable WhatsApp delivery.');
+      }
     });
   });
 }

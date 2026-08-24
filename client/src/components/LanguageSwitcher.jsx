@@ -53,7 +53,7 @@ export default function LanguageSwitcher() {
         </button>
 
         {open && (
-          <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-surface-200 py-1.5 z-20 animate-scale-in overflow-hidden">
+          <div className="absolute right-0 top-full mt-1 w-44 bg-card rounded-xl shadow-xl border border-surface-200 py-1.5 z-20 animate-scale-in overflow-hidden">
             {LANGUAGES.map(({ code }) => (
               <button
                 key={code}

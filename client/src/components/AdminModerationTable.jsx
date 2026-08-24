@@ -124,7 +124,7 @@ function ReportRow({ reportGroup, onAction }) {
           <h4 className="text-sm font-semibold text-surface-700">{t('admin.reportDetails', { count: reports.length })}</h4>
           <div className="space-y-3">
             {reports.map((report) => (
-              <div key={report._id} className="bg-white rounded-xl p-4 border border-surface-200 shadow-sm">
+              <div key={report._id} className="bg-card rounded-xl p-4 border border-surface-200 shadow-sm">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1.5">
                     <span className="badge-danger text-[11px] capitalize">{report.reason}</span>

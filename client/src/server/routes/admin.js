@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
+const { requireReputation } = require('../middleware/reputation');
 const {
   getReportedPosts,
   dismissReport,
@@ -12,7 +13,6 @@ const {
 } = require('../controllers/adminController');
 const { createReport } = require('../controllers/reportController');
 const { getAllLoginLogs } = require('../controllers/loginLogController');
-const { requireReputation } = require('../middleware/reputation');
 
 router.use(authenticate);
 
