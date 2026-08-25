@@ -250,6 +250,8 @@
   "language.verify.subtitle": "सुरक्षा के लिए, {language} में बदलने के लिए अपनी पहचान सत्यापित करें।",
   "language.verify.emailOTP": "आपके पंजीकृत ईमेल पर एक OTP भेजा गया है।",
   "language.verify.phoneOTP": "आपके पंजीकृत फ़ोन नंबर पर एक OTP भेजा गया है।",
+  "language.verify.smsOTP": "आपके पंजीकृत फ़ोन नंबर पर SMS से एक OTP भेजा गया है।",
+  "language.verify.whatsappOTP": "आपके पंजीकृत फ़ोन नंबर पर WhatsApp से एक OTP भेजा गया है।",
   "language.verify.otp": "OTP दर्ज करें",
   "language.verify.otpPlaceholder": "6 अंकों का कोड",
   "language.verify.verify": "सत्यापित करें और बदलें",

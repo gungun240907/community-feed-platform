@@ -250,6 +250,8 @@
   "language.verify.subtitle": "为了安全起见，请验证您的身份以切换到{language}。",
   "language.verify.emailOTP": "验证码已发送到您的注册邮箱。",
   "language.verify.phoneOTP": "验证码已发送到您的注册手机号。",
+  "language.verify.smsOTP": "验证码已通过短信发送到您的注册手机号。",
+  "language.verify.whatsappOTP": "验证码已通过 WhatsApp 发送到您的注册手机号。",
   "language.verify.otp": "输入验证码",
   "language.verify.otpPlaceholder": "6位数字",
   "language.verify.verify": "验证并切换",

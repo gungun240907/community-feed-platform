@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Loader2, Send, AlertCircle, Mail, Phone } from 'lucide-react';
+import { X, Loader2, Send, AlertCircle, Mail, Phone, MessageCircle } from 'lucide-react';
 import { languageAPI } from '../utils/api';
 import { useTranslation } from '../context/I18nContext';
 
@@ -10,6 +10,7 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
   const [step, setStep] = useState('request');
   const [otp, setOtp] = useState('');
   const [channel, setChannel] = useState('email');
+  const [method, setMethod] = useState('email');
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -19,6 +20,8 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
     setError('');
     try {
       const res = await languageAPI.request(targetLang);
+      const m = res?.data?.delivery?.method || (res?.data?.channel === 'phone' ? 'sms' : 'email');
+      setMethod(m);
       setChannel(res?.data?.channel === 'phone' ? 'phone' : 'email');
       setStep('verify');
     } catch (err) {
@@ -77,8 +80,22 @@ export default function LanguageVerifyModal({ targetLang, onClose, onVerified })
         ) : (
           <div className="space-y-4">
             <div className="flex items-center gap-2.5 p-3 rounded-xl text-sm bg-primary-50 text-primary-700 border border-primary-200">
-              {channel === 'phone' ? <Phone size={16} /> : <Mail size={16} />}
-              <span>{t(channel === 'phone' ? 'language.verify.phoneOTP' : 'language.verify.emailOTP')}</span>
+              {method === 'whatsapp' ? (
+                <MessageCircle size={16} />
+              ) : method === 'sms' ? (
+                <Phone size={16} />
+              ) : (
+                <Mail size={16} />
+              )}
+              <span>
+                {t(
+                  method === 'whatsapp'
+                    ? 'language.verify.whatsappOTP'
+                    : method === 'sms'
+                    ? 'language.verify.smsOTP'
+                    : 'language.verify.emailOTP'
+                )}
+              </span>
             </div>
 
             <div>

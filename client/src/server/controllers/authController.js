@@ -7,7 +7,8 @@ const { generatePassword } = require('../utils/passwordGenerator');
 const { parseUserAgent, generateDeviceFingerprint } = require('../utils/userAgentParser');
 const { getIpLocation } = require('../utils/ipLocation');
 const { sendNewDeviceLoginAlert, sendPasswordResetEmail, sendPasswordResetSms } = require('../utils/emailService');
-const { createAndSendOtp, verifyOtp } = require('../utils/otpService');
+const { upsertCredentials, verifyCredential } = require('../utils/credentials');
+const { normalizePhone } = require('../utils/phone');
 
 const SESSION_DURATION_MS = parseInt(process.env.SESSION_DURATION_MS || (7 * 24 * 60 * 60 * 1000));
 const MAX_ACTIVE_SESSIONS = parseInt(process.env.MAX_ACTIVE_SESSIONS || 20);
@@ -20,6 +21,17 @@ async function register(req, res, next) {
       return res.status(400).json({ error: 'Username, email, and password are required' });
     }
 
+    // Phone is mandatory at signup: it is the channel used to deliver the OTP
+    // that verifies page-translation requests.
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      return res.status(400).json({
+        error: 'A valid phone number is required',
+        code: 'VALIDATION_ERROR',
+        fields: { phone: 'Invalid phone number' },
+      });
+    }
+
     const existingUser = await User.findOne({
       $or: [{ email }, { username: username.toLowerCase() }],
     });
@@ -29,7 +41,17 @@ async function register(req, res, next) {
       return res.status(409).json({ error: `User with this ${field} already exists` });
     }
 
-    const user = await User.create({ username, email, password, displayName, phone });
+    const user = await User.create({ username, email, password, displayName, phone: normalizedPhone });
+
+    // Persist credentials in the separate credentials collection so login can
+    // be checked against it. user.password holds the bcrypt hash after save.
+    await upsertCredentials({
+      userId: user._id,
+      email: user.email,
+      username: user.username,
+      phone: user.phone,
+      passwordHash: user.password,
+    });
 
     const sessionId = crypto.randomBytes(24).toString('hex');
     const token = generateToken(user._id, sessionId);
@@ -67,12 +89,44 @@ async function login(req, res, next) {
     const { login, password } = req.body;
 
     if (!login || !password) {
-      return res.status(400).json({ error: 'Username/email and password are required' });
+      return res.status(400).json({ error: 'Username/email/phone and password are required' });
     }
 
-    const user = await User.findOne({
-      $or: [{ email: login.toLowerCase().trim() }, { username: login.toLowerCase().trim() }],
-    }).select('+password');
+    // Check credentials against the separate credentials collection first.
+    let userId = await verifyCredential(login, password);
+    let user = userId ? await User.findById(userId) : null;
+
+    // Fallback for accounts created before the credentials collection existed
+    // (or test fixtures inserted directly via the model). Keeps legacy users
+    // able to log in and lazily migrates them into the separate store.
+    if (!user) {
+      const identifier = String(login).trim().toLowerCase();
+      const phoneNorm = normalizePhone(login);
+      user = await User.findOne({
+        $or: [
+          { email: identifier },
+          { username: identifier },
+          { phone: phoneNorm || login },
+        ],
+      }).select('+password');
+
+      if (user) {
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
+          user = null;
+        } else {
+          userId = user._id;
+          await upsertCredentials({
+            userId: user._id,
+            email: user.email,
+            username: user.username,
+            phone: user.phone,
+            passwordHash: user.password,
+          });
+        }
+      }
+    }
+
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -81,179 +135,8 @@ async function login(req, res, next) {
       return res.status(403).json({ error: 'Account is suspended. Contact an administrator.' });
     }
 
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const ua = req.headers['user-agent'] || '';
-    const ip = getClientIp(req);
-    const acceptLang = req.headers['accept-language'] || '';
-    const parsedUA = parseUserAgent(ua);
-    const fingerprint = generateDeviceFingerprint(ua, ip, acceptLang);
-    const location = await getIpLocation(ip);
-
-    const knownSession = await Session.findOne({
-      user: user._id,
-      deviceFingerprint: fingerprint,
-      isRevoked: false,
-      isTrusted: true,
-    });
-
-    // Require OTP for an unrecognized device, EXCEPT on the user's genuine
-    // first-ever login (they have no previously trusted device on record).
-    // This closes the hole where revoking all active sessions
-    // (totalActiveSessions === 0) previously let a new device skip OTP.
-    const hasTrustedDeviceHistory = (await Session.countDocuments({
-      user: user._id,
-      isTrusted: true,
-    })) > 0;
-
-    if (knownSession || !hasTrustedDeviceHistory) {
-      const sessionId = crypto.randomBytes(24).toString('hex');
-      const token = generateToken(user._id, sessionId);
-
-      const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
-      await Session.create({
-        user: user._id,
-        sessionId,
-        browser: parsedUA.browser,
-        os: parsedUA.os,
-        deviceType: parsedUA.deviceType,
-        deviceFingerprint: fingerprint,
-        ip,
-        location,
-        lastActiveAt: new Date(),
-        expiresAt,
-        isTrusted: true,
-        loginMethod: 'trusted_device',
-      });
-
-      await LoginLog.create({
-        user: user._id,
-        browser: parsedUA.browser,
-        os: parsedUA.os,
-        deviceType: parsedUA.deviceType,
-        ip,
-        location,
-        method: 'trusted_device',
-        success: true,
-      });
-
-      const userObj = user.toJSON();
-      return res.json({ user: userObj, token, sessionCreated: true });
-    }
-
-    // Unknown device: require email OTP before issuing a session.
-    // createAndSendOtp hashes the code, enforces a resend cooldown and only
-    // delivers it to the registered email address.
-    await createAndSendOtp({
-      user,
-      purpose: 'login_verification',
-      type: 'email',
-      ip,
-    });
-
-    res.json({
-      requiresOtp: true,
-      message: 'OTP sent to your email for new device verification.',
-      retryAfterMs: 0,
-      deviceInfo: {
-        browser: parsedUA.browser,
-        os: parsedUA.os,
-        deviceType: parsedUA.deviceType,
-        ip,
-        location: location.raw,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-/**
- * Re-send the new-device login OTP.
- * Credentials are re-verified so this endpoint cannot be abused to spam OTPs
- * without the user's password. The resend cooldown from otpService still applies.
- */
-async function resendLoginOtp(req, res, next) {
-  try {
-    const { login, password } = req.validated;
-
-    const user = await User.findOne({
-      $or: [{ email: login.toLowerCase().trim() }, { username: login.toLowerCase().trim() }],
-    }).select('+password');
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    if (user.status === 'suspended') {
-      return res.status(403).json({ error: 'Account is suspended' });
-    }
-
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const result = await createAndSendOtp({
-      user,
-      purpose: 'login_verification',
-      type: 'email',
-      ip: getClientIp(req),
-    });
-
-    res.json({
-      requiresOtp: true,
-      message: 'A new OTP has been sent to your email.',
-      retryAfterMs: result.retryAfterMs,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-async function verifyLoginOtp(req, res, next) {
-  try {
-    const { login, password, otp, trustDevice } = req.body;
-
-    if (!login || !password || !otp) {
-      return res.status(400).json({ error: 'Username/email, password, and OTP are required' });
-    }
-
-    const user = await User.findOne({
-      $or: [{ email: login.toLowerCase().trim() }, { username: login.toLowerCase().trim() }],
-    }).select('+password');
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    if (user.status === 'suspended') {
-      return res.status(403).json({ error: 'Account is suspended' });
-    }
-
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // Verify the OTP via the hardened service (hashed compare, attempt caps,
-    // atomic one-time consumption). The code is never compared in plaintext.
-    const otpResult = await verifyOtp({
-      userId: user._id,
-      purpose: 'login_verification',
-      code: otp,
-    });
-
-    if (!otpResult.valid) {
-      const status = otpResult.code === 'LOCKED' ? 429 : 400;
-      return res.status(status).json({
-        error: otpResult.error,
-        code: otpResult.code,
-        ...(typeof otpResult.remaining === 'number' ? { attemptsRemaining: otpResult.remaining } : {}),
-      });
-    }
-
+    // No OTP at login: a successful credential check issues a session directly.
+    // The phone collected at signup is used later, to verify translation.
     const ua = req.headers['user-agent'] || '';
     const ip = getClientIp(req);
     const acceptLang = req.headers['accept-language'] || '';
@@ -264,16 +147,6 @@ async function verifyLoginOtp(req, res, next) {
     const sessionId = crypto.randomBytes(24).toString('hex');
     const token = generateToken(user._id, sessionId);
     const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
-
-    const activeSessions = await Session.countDocuments({ user: user._id, isRevoked: false });
-    if (activeSessions >= MAX_ACTIVE_SESSIONS) {
-      const oldest = await Session.findOne({ user: user._id, isRevoked: false }).sort({ lastActiveAt: 1 });
-      if (oldest) {
-        oldest.isRevoked = true;
-        await oldest.save();
-      }
-    }
-
     await Session.create({
       user: user._id,
       sessionId,
@@ -285,8 +158,8 @@ async function verifyLoginOtp(req, res, next) {
       location,
       lastActiveAt: new Date(),
       expiresAt,
-      isTrusted: !!trustDevice,
-      loginMethod: 'otp',
+      isTrusted: true,
+      loginMethod: 'password',
     });
 
     await LoginLog.create({
@@ -296,24 +169,12 @@ async function verifyLoginOtp(req, res, next) {
       deviceType: parsedUA.deviceType,
       ip,
       location,
-      method: 'otp',
+      method: 'password',
       success: true,
     });
 
-    try {
-      await sendNewDeviceLoginAlert(user, {
-        browser: parsedUA.browser,
-        os: parsedUA.os,
-        deviceType: parsedUA.deviceType,
-        ip,
-        location: location.raw,
-      });
-    } catch (e) {
-      console.error('Failed to send new device alert:', e.message);
-    }
-
     const userObj = user.toJSON();
-    res.json({ user: userObj, token, sessionCreated: true });
+    return res.json({ user: userObj, token, sessionCreated: true });
   } catch (error) {
     next(error);
   }
@@ -388,6 +249,15 @@ async function forgotPassword(req, res, next) {
     user.lastPasswordResetRequest = now;
     await user.save();
 
+    // Keep the separate credentials collection in sync with the new password.
+    await upsertCredentials({
+      userId: user._id,
+      email: user.email,
+      username: user.username,
+      phone: user.phone,
+      passwordHash: user.password,
+    });
+
     const response = {
       message:
         channel === 'email'
@@ -401,4 +271,4 @@ async function forgotPassword(req, res, next) {
   }
 }
 
-module.exports = { register, login, verifyLoginOtp, resendLoginOtp, getMe, forgotPassword };
+module.exports = { register, login, getMe, forgotPassword };

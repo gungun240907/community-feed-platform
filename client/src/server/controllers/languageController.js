@@ -37,15 +37,21 @@ async function requestLanguageSwitch(req, res, next) {
       ip: getClientIp(req),
     });
 
-    // Report the channel that was ACTUALLY used. When WhatsApp is unconfigured
-    // (or fails) the OTP is emailed, so we must not tell the user it went to
-    // their phone — that would be a misleading UI/explanation mismatch.
-    const deliveredVia = result.deliveredVia; // 'whatsapp' | 'email'
-    const actualChannel = deliveredVia === 'whatsapp' ? 'phone' : 'email';
+    // Report the channel that was ACTUALLY used. When SMS/WhatsApp is
+    // unconfigured (or fails) the OTP is emailed, so we must not tell the user
+    // it went to their phone — that would be a misleading UI/explanation mismatch.
+    const deliveredVia = result.deliveredVia; // 'sms' | 'whatsapp' | 'email'
+    const actualChannel = deliveredVia === 'email' ? 'email' : 'phone';
     const actualContact = actualChannel === 'phone' ? req.user.phone : req.user.email;
+    const methodLabel =
+      deliveredVia === 'sms'
+        ? ' via SMS'
+        : deliveredVia === 'whatsapp'
+        ? ' via WhatsApp'
+        : '';
 
     return res.json({
-      message: `OTP sent to your ${actualChannel}${deliveredVia === 'whatsapp' ? ' via WhatsApp' : ''}.`,
+      message: `OTP sent to your ${actualChannel}${methodLabel}.`,
       type: otpType,
       channel: actualChannel,
       language,

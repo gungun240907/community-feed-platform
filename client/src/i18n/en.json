@@ -250,6 +250,8 @@
   "language.verify.subtitle": "For security, please verify your identity to switch to {language}.",
   "language.verify.emailOTP": "An OTP has been sent to your registered email.",
   "language.verify.phoneOTP": "An OTP has been sent to your registered phone number.",
+  "language.verify.smsOTP": "An OTP has been sent to your registered phone number via SMS.",
+  "language.verify.whatsappOTP": "An OTP has been sent to your registered phone number via WhatsApp.",
   "language.verify.otp": "Enter OTP",
   "language.verify.otpPlaceholder": "6-digit code",
   "language.verify.verify": "Verify & Switch",

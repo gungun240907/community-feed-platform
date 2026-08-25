@@ -24,12 +24,6 @@ const otpResendSchema = z.object({
   type: z.enum(['email', 'phone']).optional(),
 });
 
-/** Body for /api/auth/resend-login-otp (re-authenticates before re-sending). */
-const resendLoginOtpSchema = z.object({
-  login: z.string().min(1, { message: 'Username/email is required' }).max(100),
-  password: z.string().min(1, { message: 'Password is required' }).max(200),
-});
-
 /**
  * Body for /api/auth/register. Field rules mirror the User model so invalid
  * payloads fail fast with a 400 before touching the database.
@@ -51,8 +45,8 @@ const registerSchema = z.object({
     .optional(),
   phone: z
     .string()
-    .max(20, { message: 'Phone number is too long' })
-    .optional(),
+    .min(7, { message: 'Phone number is required' })
+    .max(20, { message: 'Phone number is too long' }),
 });
 
 /**
@@ -84,6 +78,5 @@ module.exports = {
   otpRequestSchema,
   otpVerifySchema,
   otpResendSchema,
-  resendLoginOtpSchema,
   registerSchema,
 };

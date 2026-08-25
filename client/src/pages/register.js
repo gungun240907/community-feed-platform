@@ -21,6 +21,12 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!form.phone || form.phone.trim().length < 7) {
+      setError('A valid phone number is required.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -100,7 +106,7 @@ export default function RegisterPage() {
 
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-surface-700">
-                {t('auth.register.phone')} <span className="text-surface-400 font-normal">{t('auth.register.phoneOptional')}</span>
+                {t('auth.register.phone')} <span className="text-surface-400 font-normal">(required)</span>
               </label>
               <PhoneInput
                 value={form.phone}
@@ -135,7 +141,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               className="btn-primary w-full mt-2"
-              disabled={isSubmitting || !form.username || !form.email || !form.password}
+              disabled={isSubmitting || !form.username || !form.email || !form.password || !form.phone}
             >
               {isSubmitting ? (
                 <Loader2 size={18} className="animate-spin mr-2" />

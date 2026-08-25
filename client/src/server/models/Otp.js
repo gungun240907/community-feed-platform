@@ -18,6 +18,11 @@ const otpSchema = new mongoose.Schema(
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     // HMAC-SHA256 digest of the OTP code (peppered). NEVER store plaintext.
     codeHash: { type: String, required: true },
+    // Provider-managed OTP (e.g. Message Central): when set, verification is
+    // delegated to the provider via its verificationId instead of our local hash.
+    provider: { type: String, default: null }, // e.g. 'messagecentral'
+    providerVerificationId: { type: String, default: null },
+    providerChannel: { type: String, default: null }, // 'sms' | 'whatsapp'
     type: { type: String, enum: ['email', 'phone'], required: true },
     purpose: {
       type: String,

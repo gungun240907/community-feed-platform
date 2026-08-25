@@ -271,14 +271,70 @@ async function sendPasswordResetEmail(user, newPassword) {
 
 async function sendOtpSms({ user, otp, purpose }) {
   if (!user.phone) {
-    console.log('[emailService] No phone number; cannot deliver OTP via WhatsApp.');
-    return false;
+    console.log('[emailService] No phone number; cannot deliver OTP via SMS/WhatsApp.');
+    return { delivered: false, via: null };
   }
-  if (whatsappService.isConfigured()) {
-    return whatsappService.sendOtp(user.phone, otp);
+
+  const mc = require('./messageCentralService');
+  const smsProvider = (process.env.OTP_SMS_PROVIDER || 'messagecentral').toLowerCase();
+  const waProvider = (process.env.OTP_WHATSAPP_PROVIDER || 'meta').toLowerCase();
+
+  // 1) SMS via Message Central (real-time, no DLT registration required).
+  //    Message Central generates+verifies the code; sendOtp returns a
+  //    verificationId we persist and later validate against.
+  if (smsProvider === 'messagecentral' && mc.isConfigured()) {
+    try {
+      const verificationId = await mc.sendOtp({ user, channel: 'SMS' });
+      if (verificationId) return { delivered: true, via: 'sms', providerVerificationId: verificationId };
+      console.warn('[emailService] Message Central SMS failed; trying WhatsApp.');
+    } catch (e) {
+      console.error('[emailService] Message Central SMS error:', e.message);
+    }
   }
-  console.log('[emailService] WhatsApp not configured; OTP will fall back to email delivery.');
-  return false;
+
+  // 2) WhatsApp: Message Central (if enabled) else Meta Cloud API.
+  if (waProvider === 'messagecentral' && mc.isConfigured()) {
+    try {
+      const verificationId = await mc.sendOtp({ user, channel: 'WHATSAPP' });
+      if (verificationId)
+        return { delivered: true, via: 'whatsapp', providerVerificationId: verificationId };
+    } catch (e) {
+      console.error('[messageCentral] Message Central WhatsApp error:', e.message);
+    }
+  } else if (whatsappService.isConfigured()) {
+    try {
+      const sent = await whatsappService.sendOtp(user.phone, otp);
+      if (sent) return { delivered: true, via: 'whatsapp' };
+    } catch (e) {
+      console.error('[emailService] Meta WhatsApp error:', e.message);
+    }
+  }
+
+  console.log('[emailService] No SMS/WhatsApp channel available; OTP will fall back to email.');
+  return { delivered: false, via: null };
+}
+
+/**
+ * Resolve which OTP delivery channels are active and the order they will be
+ * tried for a `type:'phone'` OTP. Used by /api/health and /api/otp/diagnostic
+ * so operators can confirm the wiring at a glance.
+ */
+function otpChannelConfig() {
+  const mc = require('./messageCentralService');
+  const smsProvider = (process.env.OTP_SMS_PROVIDER || 'messagecentral').toLowerCase();
+  const waProvider = (process.env.OTP_WHATSAPP_PROVIDER || 'meta').toLowerCase();
+
+  const sms = smsProvider === 'messagecentral' && mc.isConfigured() ? 'messagecentral' : null;
+  let whatsapp = null;
+  if (waProvider === 'messagecentral' && mc.isConfigured()) whatsapp = 'messagecentral';
+  else if (whatsappService.isConfigured()) whatsapp = 'meta';
+
+  return {
+    sms, // 'messagecentral' | null
+    whatsapp, // 'messagecentral' | 'meta' | null
+    emailFallback: true,
+    order: [sms, whatsapp, 'email'].filter(Boolean),
+  };
 }
 
 async function sendPasswordResetSms(user, newPassword) {
@@ -296,4 +352,4 @@ async function sendPasswordResetSms(user, newPassword) {
   return sendPasswordResetEmail(user, newPassword);
 }
 
-module.exports = { sendSubscriptionConfirmation, sendSupportEmail, sendNewDeviceLoginAlert, sendOtpEmail, sendPasswordResetEmail, sendOtpSms, sendPasswordResetSms };
+module.exports = { sendSubscriptionConfirmation, sendSupportEmail, sendNewDeviceLoginAlert, sendOtpEmail, sendPasswordResetEmail, sendOtpSms, sendPasswordResetSms, otpChannelConfig };

@@ -32,7 +32,7 @@ before(async () => {
   ctx.userId = null;
 
   const r = await api(ctx.base, 'POST', '/api/auth/register', {
-    body: { username: 'otpuser', email: 'otpuser@test.com', password: 'OtpUser123!', displayName: 'Otp User' },
+    body: { username: 'otpuser', email: 'otpuser@test.com', password: 'OtpUser123!', displayName: 'Otp User', phone: '+15550001111' },
   });
   assert.strictEqual(r.status, 201, `register failed: ${r.data?.error || r.status}`);
   ctx.token = r.data.token;
@@ -226,54 +226,31 @@ test('OTP verification attempts are rate limited per IP', async () => {
   assert.strictEqual(blocked.data.code, 'RATE_LIMITED');
 });
 
-test('new-device login OTP flow: resend re-verifies credentials and honors cooldown', async () => {
+test('login issues a session directly (no OTP) and still verifies credentials', async () => {
   const reg = await api(ctx.base, 'POST', '/api/auth/register', {
     ua: UA_A,
-    body: { username: 'otpflow', email: 'otpflow@test.com', password: 'Flow1234!', displayName: 'Flow' },
+    body: { username: 'otpflow', email: 'otpflow@test.com', password: 'Flow1234!', displayName: 'Flow', phone: '+15550001234' },
   });
   assert.strictEqual(reg.status, 201);
-  const flowUserId = reg.data.user._id;
 
+  // A successful login returns a token directly — no OTP step.
   const login = await api(ctx.base, 'POST', '/api/auth/login', {
     ua: UA_B,
     body: { login: 'otpflow@test.com', password: 'Flow1234!' },
   });
   assert.strictEqual(login.status, 200);
-  assert.strictEqual(login.data.requiresOtp, true);
-  assert.strictEqual(login.data.code, undefined);
-  const preview = otpService.getTestOtpPreview(flowUserId, 'login_verification');
-  assert.ok(preview, 'login OTP preview unavailable (is NODE_ENV=test?)');
+  assert.strictEqual(login.data.requiresOtp, undefined, 'login must not require OTP');
+  assert.ok(login.data.token, 'login must return a session token');
 
-  const wrongPass = await api(ctx.base, 'POST', '/api/auth/resend-login-otp', {
+  // Wrong password is rejected.
+  const bad = await api(ctx.base, 'POST', '/api/auth/login', {
     body: { login: 'otpflow@test.com', password: 'wrong-password' },
   });
-  assert.strictEqual(wrongPass.status, 401, 'resend must re-authenticate before sending');
+  assert.strictEqual(bad.status, 401, 'wrong password must be rejected');
 
-  const cooldown = await api(ctx.base, 'POST', '/api/auth/resend-login-otp', {
-    body: { login: 'otpflow@test.com', password: 'Flow1234!' },
+  // Login by phone also works (credentials are stored per identifier).
+  const byPhone = await api(ctx.base, 'POST', '/api/auth/login', {
+    body: { login: '+15550001234', password: 'Flow1234!' },
   });
-  assert.strictEqual(cooldown.status, 429, 'resend must respect the cooldown');
-  assert.ok(cooldown.data.retryAfterMs > 0);
-
-  const Otp = ctx.mongoose.model('Otp');
-  await Otp.deleteMany({ user: flowUserId, purpose: 'login_verification' });
-
-  const resend = await api(ctx.base, 'POST', '/api/auth/resend-login-otp', {
-    body: { login: 'otpflow@test.com', password: 'Flow1234!' },
-  });
-  assert.strictEqual(resend.status, 200);
-  assert.strictEqual(resend.data.requiresOtp, true);
-  const freshPreview = otpService.getTestOtpPreview(flowUserId, 'login_verification');
-  assert.ok(freshPreview, 'a fresh OTP should have been issued');
-
-  const badOtp = await api(ctx.base, 'POST', '/api/auth/verify-login-otp', {
-    body: { login: 'otpflow@test.com', password: 'Flow1234!', otp: '000000' },
-  });
-  assert.strictEqual(badOtp.status, 400);
-
-  const ok = await api(ctx.base, 'POST', '/api/auth/verify-login-otp', {
-    body: { login: 'otpflow@test.com', password: 'Flow1234!', otp: freshPreview.code, trustDevice: false },
-  });
-  assert.strictEqual(ok.status, 200);
-  assert.ok(ok.data.token, 'a valid OTP must issue a session token');
+  assert.strictEqual(byPhone.status, 200, 'login by phone must succeed');
 });

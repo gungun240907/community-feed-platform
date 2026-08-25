@@ -44,26 +44,53 @@ function isConfigured() {
 
 /**
  * Send a WhatsApp template message.
- * @param {{ to: string, template: string, bodyVariables: (string|number)[] }} opts
+ *
+ * Meta templates come in two relevant shapes:
+ *  - Authentication templates (used for OTPs) expect the code inside a
+ *    `button` component with `sub_type: 'otp'`, NOT a body parameter.
+ *  - Utility/Marketing templates use a `body` component whose `{{1}}` slot
+ *    is filled by a text parameter.
+ * The `auth` flag selects the correct shape so Meta does not reject the
+ * message (the previous body-parameter-only payload failed for auth
+ * templates, forcing every OTP to fall back to email).
+ *
+ * @param {{ to: string, template: string, bodyVariables: (string|number)[], auth?: boolean }} opts
  * @returns {Promise<boolean>} true if Meta accepted the message
  */
-async function sendTemplateMessage({ to, template, bodyVariables = [] }) {
+async function sendTemplateMessage({ to, template, bodyVariables = [], auth = false }) {
   const { accessToken, phoneNumberId, apiVersion } = getConfig();
+
+  if (!accessToken || !phoneNumberId) {
+    console.error('[whatsappService] Missing access token or phone number ID; cannot send.');
+    return false;
+  }
+
   const url = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
+
+  const components = auth
+    ? [
+        {
+          type: 'button',
+          sub_type: 'otp',
+          parameters: [{ type: 'text', text: String(bodyVariables[0] ?? '') }],
+        },
+      ]
+    : [
+        {
+          type: 'body',
+          parameters: bodyVariables.map((v) => ({ type: 'text', text: String(v) })),
+        },
+      ];
 
   const payload = {
     messaging_product: 'whatsapp',
+    recipient_type: 'individual',
     to,
     type: 'template',
     template: {
       name: template,
       language: { code: 'en' },
-      components: [
-        {
-          type: 'body',
-          parameters: bodyVariables.map((v) => ({ type: 'text', text: String(v) })),
-        },
-      ],
+      components,
     },
   };
 
@@ -90,17 +117,22 @@ async function sendTemplateMessage({ to, template, bodyVariables = [] }) {
   }
 }
 
-/** Send an OTP code to a phone number via WhatsApp. */
+/** Send an OTP code to a phone number via WhatsApp (Authentication template). */
 async function sendOtp(rawPhone, code) {
   const to = normalizePhone(rawPhone);
   if (!to) {
     console.error('[whatsappService] Invalid phone for OTP:', rawPhone);
     return false;
   }
-  return sendTemplateMessage({ to, template: getConfig().otpTemplate, bodyVariables: [code] });
+  return sendTemplateMessage({
+    to,
+    template: getConfig().otpTemplate,
+    bodyVariables: [code],
+    auth: true,
+  });
 }
 
-/** Send a new password to a phone number via WhatsApp. */
+/** Send a new password to a phone number via WhatsApp (Utility template). */
 async function sendPasswordReset(rawPhone, password) {
   const to = normalizePhone(rawPhone);
   if (!to) {
@@ -111,6 +143,7 @@ async function sendPasswordReset(rawPhone, password) {
     to,
     template: getConfig().resetTemplate,
     bodyVariables: [password],
+    auth: false,
   });
 }
 

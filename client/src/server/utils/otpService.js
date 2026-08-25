@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const Otp = require('../models/Otp');
 const { sendOtpEmail, sendOtpSms } = require('./emailService');
-const whatsappService = require('./whatsappService');
+const messageCentralService = require('./messageCentralService');
 
 /**
  * Production-grade OTP service.
@@ -202,24 +202,23 @@ async function createAndSendOtp({ user, purpose, type = 'email', ip = '', delive
   });
 
   let delivered = false;
-  let deliveredVia = null; // 'whatsapp' | 'email' — the channel actually used
+  let deliveredVia = null; // 'sms' | 'whatsapp' | 'email' — channel actually used
+  let providerVerificationId = null; // set when a provider (MC) generates the code
   if (deliver) {
     try {
       if (type === 'phone') {
-        // Prefer WhatsApp for phone-delivered OTPs. When WhatsApp is
-        // unconfigured or the send fails, fall back to email so verification
-        // still works.
-        const whatsappConfigured = whatsappService.isConfigured();
-        const smsOk = await sendOtpSms({ user, otp: code, purpose });
-        if (smsOk) {
+        // Try real-time SMS/WhatsApp delivery (Message Central / Meta). When no
+        // channel is configured or delivery fails, fall back to email so
+        // verification still works.
+        const smsResult = await sendOtpSms({ user, otp: code, purpose });
+        if (smsResult && smsResult.delivered) {
           delivered = true;
-          deliveredVia = 'whatsapp';
+          deliveredVia = smsResult.via; // 'sms' | 'whatsapp'
+          providerVerificationId = smsResult.providerVerificationId || null;
         } else {
-          if (whatsappConfigured) {
-            console.warn(
-              '[otpService] WhatsApp delivery attempted but failed; falling back to email.'
-            );
-          }
+          console.warn(
+            '[otpService] SMS/WhatsApp unavailable or delivery failed; falling back to email.'
+          );
           delivered = await sendOtpEmail({ user, otp: code, purpose });
           deliveredVia = 'email';
         }
@@ -239,6 +238,15 @@ async function createAndSendOtp({ user, purpose, type = 'email', ip = '', delive
         code: 'DELIVERY_FAILED',
       });
     }
+  }
+
+  // When a provider generated the code, persist its verificationId so we can
+  // verify the user's input against it. (Email OTP keeps the local hash.)
+  if (providerVerificationId) {
+    await Otp.updateOne(
+      { _id: otpDoc._id },
+      { $set: { provider: 'messagecentral', providerVerificationId, providerChannel: deliveredVia } }
+    );
   }
 
   storeTestPreview(user._id, purpose, code, expiresAt);
@@ -288,6 +296,56 @@ async function verifyOtp({ userId, purpose, code }) {
   }
 
   const submittedHash = hashOtp(code.trim());
+
+  // Provider-managed OTP (e.g. Message Central): verify the code against the
+  // provider's verificationId rather than our local hash.
+  if (otpDoc.providerVerificationId) {
+    const ok = await messageCentralService.validateOtp({
+      verificationId: otpDoc.providerVerificationId,
+      code: code.trim(),
+      channel: otpDoc.providerChannel || 'SMS',
+    });
+
+    if (!ok) {
+      const updated = await Otp.findOneAndUpdate(
+        { _id: otpDoc._id, verified: false },
+        { $inc: { attempts: 1 } },
+        { new: true }
+      );
+      const currentAttempts = updated ? updated.attempts : otpDoc.attempts + 1;
+      if (currentAttempts >= MAX_OTP_ATTEMPTS) {
+        await Otp.updateOne({ _id: otpDoc._id, verified: false }, {
+          $set: { verified: true, consumedAt: new Date() },
+        });
+        return {
+          valid: false,
+          code: 'LOCKED',
+          error: 'Too many incorrect attempts. Please request a new OTP.',
+        };
+      }
+      const remaining = MAX_OTP_ATTEMPTS - currentAttempts;
+      return {
+        valid: false,
+        code: 'MISMATCH',
+        remaining,
+        error: `Invalid OTP. ${remaining} attempt${remaining > 1 ? 's' : ''} remaining.`,
+      };
+    }
+
+    const consumed = await Otp.findOneAndUpdate(
+      { _id: otpDoc._id, verified: false, attempts: { $lt: MAX_OTP_ATTEMPTS } },
+      { $set: { verified: true, consumedAt: new Date() } },
+      { new: true }
+    );
+    if (!consumed) {
+      return {
+        valid: false,
+        code: 'ALREADY_USED',
+        error: 'This OTP has already been used. Please request a new one.',
+      };
+    }
+    return { valid: true, otpDoc: consumed };
+  }
 
   if (!safeEqualHex(otpDoc.codeHash, submittedHash)) {
     // Atomically increment the attempt counter and lock once the cap is reached.

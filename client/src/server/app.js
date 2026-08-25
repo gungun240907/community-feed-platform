@@ -23,6 +23,8 @@ const sessionRoutes = require('./routes/sessions');
 const loginLogRoutes = require('./routes/loginLogs');
 const otpRoutes = require('./routes/otp');
 const whatsappService = require('./utils/whatsappService');
+const messageCentralService = require('./utils/messageCentralService');
+const emailService = require('./utils/emailService');
 
 const app = express();
 const server = http.createServer(app);
@@ -103,6 +105,8 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     whatsapp: whatsappService.isConfigured(),
+    messagecentral: messageCentralService.isConfigured(),
+    otp: emailService.otpChannelConfig(),
   });
 });
 

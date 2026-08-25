@@ -250,6 +250,8 @@
   "language.verify.subtitle": "Pour des raisons de sécurité, veuillez vérifier votre identité pour passer à {language}.",
   "language.verify.emailOTP": "Un OTP a été envoyé à votre adresse e-mail enregistrée.",
   "language.verify.phoneOTP": "Un OTP a été envoyé à votre numéro de téléphone enregistré.",
+  "language.verify.smsOTP": "Un OTP a été envoyé à votre numéro de téléphone enregistré par SMS.",
+  "language.verify.whatsappOTP": "Un OTP a été envoyé à votre numéro de téléphone enregistré via WhatsApp.",
   "language.verify.otp": "Entrez l'OTP",
   "language.verify.otpPlaceholder": "Code à 6 chiffres",
   "language.verify.verify": "Vérifier et changer",

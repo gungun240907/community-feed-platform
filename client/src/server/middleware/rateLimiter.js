@@ -53,28 +53,12 @@ const otpVerifyLimiter = limiter(
   'Too many OTP verification attempts. Please try again later.'
 );
 
-/** Maximum password-less login OTP resends per IP per window. */
-const resendLoginOtpLimiter = limiter(
-  'resend-login-otp',
-  OTP_WINDOW_MS,
-  envInt('RATE_LIMIT_RESEND_LOGIN_OTP_MAX', 10),
-  'Too many OTP resend requests. Please try again later.'
-);
-
 /** Login endpoint: prevents credential stuffing / online password guessing. */
 const authLoginLimiter = limiter(
   'auth-login',
   envInt('RATE_LIMIT_LOGIN_WINDOW_MS', 15 * 60 * 1000),
   envInt('RATE_LIMIT_LOGIN_MAX', 50),
   'Too many login attempts. Please try again later.'
-);
-
-/** Verify-login-OTP endpoint. */
-const verifyLoginOtpLimiter = limiter(
-  'verify-login-otp',
-  OTP_WINDOW_MS,
-  envInt('RATE_LIMIT_VERIFY_LOGIN_OTP_MAX', 20),
-  'Too many OTP verification attempts. Please try again later.'
 );
 
 /** Forgot-password endpoint: prevent account harvesting via email floods. */
@@ -88,8 +72,6 @@ const forgotPasswordLimiter = limiter(
 module.exports = {
   otpRequestLimiter,
   otpVerifyLimiter,
-  resendLoginOtpLimiter,
   authLoginLimiter,
-  verifyLoginOtpLimiter,
   forgotPasswordLimiter,
 };
