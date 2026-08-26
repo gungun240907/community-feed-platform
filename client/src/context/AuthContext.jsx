@@ -49,6 +49,20 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
+  const verifyLogin = useCallback(async (loginIdentifier, otp) => {
+    const response = await authAPI.verifyLogin({ login: loginIdentifier, otp });
+    const data = response.data;
+
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setUser(data.user);
+      setToken(data.token);
+      setFeedVersion((v) => v + 1);
+    }
+    return data;
+  }, []);
+
   const register = useCallback(async (data) => {
     const response = await authAPI.register(data);
     const { user: userData, token: newToken } = response.data;
@@ -93,6 +107,7 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!user,
     feedVersion,
     login,
+    verifyLogin,
     register,
     logout,
     updateUser,

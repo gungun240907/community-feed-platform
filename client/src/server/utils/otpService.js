@@ -166,7 +166,7 @@ async function getOtpStatus({ userId, purpose }) {
  * @param {boolean} [opts.deliver=true]
  * @returns {Promise<{expiresAt: Date, purpose: string, type: string, retryAfterMs: number}>}
  */
-async function createAndSendOtp({ user, purpose, type = 'email', ip = '', deliver = true }) {
+async function createAndSendOtp({ user, purpose, type = 'email', ip = '', deliver = true, language = null }) {
   if (!VALID_PURPOSES.includes(purpose)) {
     throw otpError(400, 'Invalid OTP purpose', { code: 'INVALID_PURPOSE' });
   }
@@ -196,6 +196,7 @@ async function createAndSendOtp({ user, purpose, type = 'email', ip = '', delive
     codeHash: hashOtp(code),
     type,
     purpose,
+    language: language || null,
     ip,
     expiresAt,
     resendCount: latest ? latest.resendCount + 1 : 0,

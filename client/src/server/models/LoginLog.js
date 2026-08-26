@@ -20,6 +20,11 @@ const loginLogSchema = new mongoose.Schema({
     enum: ['desktop', 'mobile', 'tablet', 'unknown'],
     default: 'unknown',
   },
+  deviceFingerprint: {
+    type: String,
+    default: '',
+    index: true,
+  },
   ip: {
     type: String,
     default: '',

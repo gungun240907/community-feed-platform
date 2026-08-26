@@ -34,6 +34,7 @@ async function requestLanguageSwitch(req, res, next) {
       user: req.user,
       purpose: 'language_switch',
       type: otpType,
+      language,
       ip: getClientIp(req),
     });
 
@@ -87,6 +88,18 @@ async function verifyLanguageSwitch(req, res, next) {
         error: result.error,
         code: result.code,
         ...(typeof result.remaining === 'number' ? { attemptsRemaining: result.remaining } : {}),
+      });
+    }
+
+    // The OTP must have been issued for the exact language being switched to.
+    // This enforces the channel rule (fr -> email, all others -> phone) because
+    // the OTP's delivery channel is chosen from the requested language at issue
+    // time. A French (email) OTP therefore cannot switch the account to Spanish.
+    const issuedLanguage = result.otpDoc && result.otpDoc.language;
+    if (issuedLanguage && issuedLanguage !== language) {
+      return res.status(400).json({
+        error: 'This verification code was issued for a different language. Please request a new code.',
+        code: 'LANGUAGE_MISMATCH',
       });
     }
 

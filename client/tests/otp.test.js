@@ -226,21 +226,41 @@ test('OTP verification attempts are rate limited per IP', async () => {
   assert.strictEqual(blocked.data.code, 'RATE_LIMITED');
 });
 
-test('login issues a session directly (no OTP) and still verifies credentials', async () => {
+test('recognized device logs in directly; new device requires OTP', async () => {
   const reg = await api(ctx.base, 'POST', '/api/auth/register', {
     ua: UA_A,
     body: { username: 'otpflow', email: 'otpflow@test.com', password: 'Flow1234!', displayName: 'Flow', phone: '+15550001234' },
   });
   assert.strictEqual(reg.status, 201);
+  const otpflowId = reg.data.user._id;
 
-  // A successful login returns a token directly — no OTP step.
+  // Same (recognized) device logs in directly and returns a token.
+  const known = await api(ctx.base, 'POST', '/api/auth/login', {
+    ua: UA_A,
+    body: { login: 'otpflow@test.com', password: 'Flow1234!' },
+  });
+  assert.strictEqual(known.status, 200);
+  assert.strictEqual(known.data.otpRequired, undefined, 'recognized device must not require OTP');
+  assert.ok(known.data.token, 'recognized login must return a session token');
+
+  // A NEW device (different fingerprint) must be challenged with an OTP and
+  // must NOT return a token until the OTP is verified.
   const login = await api(ctx.base, 'POST', '/api/auth/login', {
     ua: UA_B,
     body: { login: 'otpflow@test.com', password: 'Flow1234!' },
   });
   assert.strictEqual(login.status, 200);
-  assert.strictEqual(login.data.requiresOtp, undefined, 'login must not require OTP');
-  assert.ok(login.data.token, 'login must return a session token');
+  assert.strictEqual(login.data.otpRequired, true, 'new device must require OTP');
+  assert.strictEqual(login.data.token, undefined, 'new device must not return a token before OTP');
+
+  // Completing the OTP issues a trusted session token.
+  const code = otpService.getTestOtpPreview(otpflowId, 'login_verification')?.code;
+  const verify = await api(ctx.base, 'POST', '/api/auth/verify-login', {
+    ua: UA_B,
+    body: { login: 'otpflow@test.com', otp: code },
+  });
+  assert.strictEqual(verify.status, 200);
+  assert.ok(verify.data.token, 'verify-login must return a session token');
 
   // Wrong password is rejected.
   const bad = await api(ctx.base, 'POST', '/api/auth/login', {

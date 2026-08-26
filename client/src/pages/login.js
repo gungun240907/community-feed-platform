@@ -7,11 +7,14 @@ import { useTranslation } from '../context/I18nContext';
 export default function LoginPage() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { login, isAuthenticated } = useAuth();
+  const { login, verifyLogin, isAuthenticated } = useAuth();
   const [form, setForm] = useState({ login: '', password: '' });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [otpStep, setOtpStep] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [otpContact, setOtpContact] = useState('');
 
   useEffect(() => {
     if (isAuthenticated) router.push('/');
@@ -26,11 +29,33 @@ export default function LoginPage() {
       const response = await login(form);
       if (response && response.token) {
         router.push('/');
+      } else if (response && response.otpRequired) {
+        setOtpContact(response.contact || '');
+        setOtpStep(true);
       } else {
         setError('Login failed. Please try again.');
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      const response = await verifyLogin(form.login, otp);
+      if (response && response.token) {
+        router.push('/');
+      } else {
+        setError('Verification failed. Please try again.');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Verification failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -60,6 +85,7 @@ export default function LoginPage() {
             </div>
           )}
 
+          {!otpStep && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-surface-700">{t('auth.login.username')}</label>
@@ -113,6 +139,46 @@ export default function LoginPage() {
               </a>
             </div>
           </form>
+          )}
+
+          {otpStep && (
+            <form onSubmit={handleVerify} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-surface-700">Verification code</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  placeholder="Enter the 6-digit code"
+                  inputMode="numeric"
+                  required
+                />
+                <p className="text-xs text-surface-500">
+                  We sent a verification code to {otpContact || 'your email'} to confirm this new device.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                className="btn-primary w-full mt-2"
+                disabled={isSubmitting || !otp}
+              >
+                {isSubmitting ? (
+                  <Loader2 size={18} className="animate-spin mr-2" />
+                ) : null}
+                Verify & Sign in
+              </button>
+
+              <button
+                type="button"
+                className="btn-secondary w-full justify-center"
+                onClick={() => { setOtpStep(false); setOtp(''); setError(''); }}
+              >
+                Back to login
+              </button>
+            </form>
+          )}
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">

@@ -18,6 +18,7 @@ const IDEMPOTENT_REASONS = new Set([
   'answer_5_upvotes',
   'question_10_upvotes',
   'profile_completed',
+  'admin_removed',
 ]);
 
 async function addReputation(userId, reason, referenceType = null, referenceId = null) {

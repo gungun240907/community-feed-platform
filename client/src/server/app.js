@@ -29,6 +29,14 @@ const emailService = require('./utils/emailService');
 const app = express();
 const server = http.createServer(app);
 
+// Trust the proxy only when explicitly deployed behind one (e.g. Vercel/
+// a load balancer). When unset, X-Forwarded-For is ignored so client IPs used
+// for rate limiting cannot be spoofed. Accepts `true`, a comma list of CIDRs,
+// or a number of hops.
+if (process.env.TRUST_PROXY) {
+  app.set('trust proxy', process.env.TRUST_PROXY);
+}
+
 const io = new Server(server, {
   cors: {
     origin: (origin, cb) => {

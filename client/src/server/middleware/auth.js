@@ -3,28 +3,12 @@ const User = require('../models/User');
 const Session = require('../models/Session');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-const SESSION_INACTIVE_TIMEOUT_MS = parseInt(process.env.SESSION_INACTIVE_TIMEOUT_MS || (30 * 24 * 60 * 60 * 1000));
-
-const AUTH_COOKIE_NAME = 'df_token';
-const AUTH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const SESSION_ABSOLUTE_MS = parseInt(process.env.SESSION_DURATION_MS || (30 * 24 * 60 * 60 * 1000));
+const SESSION_INACTIVE_TIMEOUT_MS = parseInt(process.env.SESSION_INACTIVE_TIMEOUT_MS || (7 * 24 * 60 * 60 * 1000));
 
 function generateToken(userId, sessionId) {
-  return jwt.sign({ id: userId, sessionId }, JWT_SECRET, { expiresIn: '7d' });
-}
-
-/**
- * Persist the JWT in an httpOnly, SameSite, (secure in production) cookie.
- * The bearer-token flow stays untouched; this cookie is defense-in-depth and
- * lets the server re-authenticate requests that only present the cookie.
- */
-function setAuthCookie(res, token) {
-  res.cookie(AUTH_COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: AUTH_COOKIE_MAX_AGE_MS,
-  });
+  const seconds = Math.floor(SESSION_ABSOLUTE_MS / 1000);
+  return jwt.sign({ id: userId, sessionId }, JWT_SECRET, { expiresIn: seconds });
 }
 
 function getTokenFromRequest(req) {
@@ -32,12 +16,18 @@ function getTokenFromRequest(req) {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.split(' ')[1];
   }
-  return req.cookies?.[AUTH_COOKIE_NAME] || null;
+  return null;
 }
 
 function getClientIp(req) {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (forwarded) return forwarded.split(',')[0].trim();
+  // Only honor X-Forwarded-For when the app is explicitly run behind a trusted
+  // reverse proxy. Otherwise an attacker could spoof the header to rotate their
+  // rate-limit key and evade login/OTP brute-force protection.
+  const trustProxy = req.app && typeof req.app.get === 'function' && req.app.get('trust proxy');
+  if (trustProxy) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) return forwarded.split(',')[0].trim();
+  }
   return req.socket?.remoteAddress || req.ip || '';
 }
 
@@ -111,4 +101,4 @@ async function optionalAuth(req, res, next) {
   }
 }
 
-module.exports = { authenticate, optionalAuth, generateToken, setAuthCookie, AUTH_COOKIE_NAME, JWT_SECRET, getClientIp, SESSION_INACTIVE_TIMEOUT_MS };
+module.exports = { authenticate, optionalAuth, generateToken, JWT_SECRET, getClientIp, SESSION_INACTIVE_TIMEOUT_MS };

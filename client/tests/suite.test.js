@@ -74,8 +74,16 @@ before(async () => {
   }
 
   for (const [username] of SEED) {
-    const r = await api(ctx.base, 'POST', '/api/auth/login', { body: { login: username, password: PASS[username] } });
+    let r = await api(ctx.base, 'POST', '/api/auth/login', { body: { login: username, password: PASS[username] } });
     assert.strictEqual(r.status, 200, `login failed for ${username}: ${r.data?.error || r.status}`);
+    // New-device logins are challenged with an email OTP; complete it using the
+    // test-only preview so the seed can obtain a session token.
+    if (r.data.otpRequired) {
+      const code = otpService.getTestOtpPreview(ctx.users[username]._id, 'login_verification')?.code;
+      assert.ok(code, `no test OTP available for ${username}`);
+      r = await api(ctx.base, 'POST', '/api/auth/verify-login', { body: { login: username, otp: code } });
+      assert.strictEqual(r.status, 200, `verify-login failed for ${username}: ${r.data?.error || r.status}`);
+    }
     ctx.tokens[username] = r.data.token;
   }
 
@@ -157,17 +165,27 @@ test('login-logs are recorded for successful logins', async () => {
   assert.strictEqual(r.data.logs[0].success, true);
 });
 
-test('login issues a session directly (no OTP), then session management works', async () => {
+test('login requires OTP on a new device, then session management works', async () => {
   // freshuser was registered on UA_A (trusted session). Log in from a different
-  // device (UA_B) — login no longer requires an OTP; it returns a token directly.
+  // device (UA_B) — a new device must be challenged with an OTP before a token
+  // is issued.
   const loginR = await api(ctx.base, 'POST', '/api/auth/login', {
     body: { login: 'fresh@test.com', password: 'Fresh123!' },
     ua: UA_B,
   });
   assert.strictEqual(loginR.status, 200);
-  assert.strictEqual(loginR.data.requiresOtp, undefined, 'login must not require OTP');
-  assert.ok(loginR.data.token, 'login must return a session token');
-  ctx.tokens.fresh2 = loginR.data.token;
+  assert.strictEqual(loginR.data.otpRequired, true, 'new device must require OTP');
+  assert.strictEqual(loginR.data.token, undefined, 'no token before OTP');
+
+  const code = otpService.getTestOtpPreview(ctx.users.freshuser._id, 'login_verification')?.code;
+  assert.ok(code, 'test OTP should be available');
+  const verifyR = await api(ctx.base, 'POST', '/api/auth/verify-login', {
+    body: { login: 'fresh@test.com', otp: code },
+    ua: UA_B,
+  });
+  assert.strictEqual(verifyR.status, 200);
+  assert.ok(verifyR.data.token, 'verify-login must return a token');
+  ctx.tokens.fresh2 = verifyR.data.token;
 
   // Sessions: should include the trusted Chrome session + this Firefox session
   const sessions = await api(ctx.base, 'GET', '/api/sessions', { token: ctx.tokens.fresh2 });

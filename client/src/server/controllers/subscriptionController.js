@@ -372,6 +372,8 @@ async function handleRazorpayWebhook(req, res) {
         const planConfig = getPlanConfig(plan);
         if (!planConfig) break;
 
+        if (await Payment.exists({ razorpayPaymentId: paymentId })) break;
+
         const now = new Date();
         const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
@@ -439,6 +441,8 @@ async function handleRazorpayWebhook(req, res) {
 
         const planConfig = getPlanConfig(plan);
         if (!planConfig) break;
+
+        if (await Payment.exists({ razorpayPaymentId: paymentEntity.id })) break;
 
         const now = new Date();
         const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);

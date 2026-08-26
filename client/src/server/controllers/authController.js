@@ -9,9 +9,94 @@ const { getIpLocation } = require('../utils/ipLocation');
 const { sendNewDeviceLoginAlert, sendPasswordResetEmail, sendPasswordResetSms } = require('../utils/emailService');
 const { upsertCredentials, verifyCredential } = require('../utils/credentials');
 const { normalizePhone } = require('../utils/phone');
+const { createAndSendOtp, verifyOtp } = require('../utils/otpService');
 
-const SESSION_DURATION_MS = parseInt(process.env.SESSION_DURATION_MS || (7 * 24 * 60 * 60 * 1000));
+// Absolute session/TToken lifetime. Must be >= the inactivity timeout in
+// middleware/auth.js (SESSION_INACTIVE_TIMEOUT_MS) so that the "expire after
+// inactivity" rule is actually reachable for active sessions.
+const SESSION_DURATION_MS = parseInt(process.env.SESSION_DURATION_MS || (30 * 24 * 60 * 60 * 1000));
 const MAX_ACTIVE_SESSIONS = parseInt(process.env.MAX_ACTIVE_SESSIONS || 20);
+
+function maskEmail(email) {
+  if (!email || !email.includes('@')) return email || '';
+  const [name, domain] = email.split('@');
+  if (!domain) return email;
+  const visible = name.slice(0, 2);
+  const masked = name.slice(2).replace(/./g, '*');
+  return `${visible}${masked}@${domain}`;
+}
+
+/**
+ * A device is "recognized" when the same fingerprint has previously produced a
+ * trusted session or a successful login. Recognized devices skip the OTP
+ * challenge; everything else is treated as unrecognized.
+ */
+async function isRecognizedDevice(userId, fingerprint) {
+  if (!fingerprint) return false;
+  if (await Session.exists({ user: userId, deviceFingerprint: fingerprint, isTrusted: true })) return true;
+  return !!(await LoginLog.exists({ user: userId, deviceFingerprint: fingerprint, success: true }));
+}
+
+/**
+ * Creates the session + login record for a successful authentication and
+ * returns the signed token. `method` distinguishes password vs OTP logins.
+ */
+async function issueSession(user, parsedUA, fingerprint, ip, location, method) {
+  const sessionId = crypto.randomBytes(24).toString('hex');
+  const token = generateToken(user._id, sessionId);
+  const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
+
+  // Enforce the concurrent-session cap: when at the limit, revoke the oldest
+  // still-active session so a user cannot accumulate unlimited live sessions.
+  const now = new Date();
+  const activeCount = await Session.countDocuments({
+    user: user._id,
+    isRevoked: false,
+    expiresAt: { $gt: now },
+  });
+  if (activeCount >= MAX_ACTIVE_SESSIONS) {
+    const oldest = await Session.find({
+      user: user._id,
+      isRevoked: false,
+      expiresAt: { $gt: now },
+    })
+      .sort({ lastActiveAt: 1 })
+      .limit(1);
+    if (oldest[0]) {
+      oldest[0].isRevoked = true;
+      await oldest[0].save();
+    }
+  }
+
+  await Session.create({
+    user: user._id,
+    sessionId,
+    browser: parsedUA.browser,
+    os: parsedUA.os,
+    deviceType: parsedUA.deviceType,
+    deviceFingerprint: fingerprint,
+    ip,
+    location,
+    lastActiveAt: new Date(),
+    expiresAt,
+    isTrusted: true,
+    loginMethod: method,
+  });
+
+  await LoginLog.create({
+    user: user._id,
+    browser: parsedUA.browser,
+    os: parsedUA.os,
+    deviceType: parsedUA.deviceType,
+    deviceFingerprint: fingerprint,
+    ip,
+    location,
+    method,
+    success: true,
+  });
+
+  return { sessionId, token, expiresAt };
+}
 
 async function register(req, res, next) {
   try {
@@ -135,8 +220,6 @@ async function login(req, res, next) {
       return res.status(403).json({ error: 'Account is suspended. Contact an administrator.' });
     }
 
-    // No OTP at login: a successful credential check issues a session directly.
-    // The phone collected at signup is used later, to verify translation.
     const ua = req.headers['user-agent'] || '';
     const ip = getClientIp(req);
     const acceptLang = req.headers['accept-language'] || '';
@@ -144,37 +227,110 @@ async function login(req, res, next) {
     const fingerprint = generateDeviceFingerprint(ua, ip, acceptLang);
     const location = await getIpLocation(ip);
 
-    const sessionId = crypto.randomBytes(24).toString('hex');
-    const token = generateToken(user._id, sessionId);
-    const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
-    await Session.create({
-      user: user._id,
-      sessionId,
-      browser: parsedUA.browser,
-      os: parsedUA.os,
-      deviceType: parsedUA.deviceType,
-      deviceFingerprint: fingerprint,
-      ip,
-      location,
-      lastActiveAt: new Date(),
-      expiresAt,
-      isTrusted: true,
-      loginMethod: 'password',
+    // Recognized devices log in directly. Unrecognized devices must confirm the
+    // login via an email OTP before a session is issued ("remember trusted
+    // devices for future logins").
+    const recognized = await isRecognizedDevice(user._id, fingerprint);
+
+    if (recognized) {
+      const { token } = await issueSession(user, parsedUA, fingerprint, ip, location, 'password');
+      const userObj = user.toJSON();
+      return res.json({ user: userObj, token, sessionCreated: true });
+    }
+
+    // Unrecognized device: challenge with a login OTP sent to the registered email.
+    try {
+      const result = await createAndSendOtp({
+        user,
+        purpose: 'login_verification',
+        type: 'email',
+        ip,
+      });
+      return res.json({
+        otpRequired: true,
+        otpType: 'email',
+        message: 'We sent a verification code to your email to confirm this new device.',
+        contact: maskEmail(user.email),
+        expiresInMs: result.expiresAt.getTime() - Date.now(),
+      });
+    } catch (otpErr) {
+      // The OTP must be enforced in every environment. If it cannot be
+      // delivered (e.g. SMTP unconfigured) we fail closed rather than letting a
+      // new device sign in without the second factor.
+      console.error('[auth] Failed to deliver login OTP:', otpErr.message);
+      return res.status(503).json({ error: 'Unable to deliver the verification code. Please try again later.' });
+    }
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Completes a login that was challenged because it came from an unrecognized
+ * device. The client submits the same login identifier plus the OTP that was
+ * emailed. On success a trusted session is issued and a new-device alert email
+ * is sent (requirement: notify on new-device logins).
+ */
+async function verifyLogin(req, res, next) {
+  try {
+    const { login, otp } = req.body;
+
+    if (!login || !otp) {
+      return res.status(400).json({ error: 'Login identifier and OTP are required' });
+    }
+
+    const identifier = String(login).trim().toLowerCase();
+    const phoneNorm = normalizePhone(login);
+    const user = await User.findOne({
+      $or: [
+        { email: identifier },
+        { username: identifier },
+        { phone: phoneNorm || login },
+      ],
     });
 
-    await LoginLog.create({
-      user: user._id,
-      browser: parsedUA.browser,
-      os: parsedUA.os,
-      deviceType: parsedUA.deviceType,
-      ip,
-      location,
-      method: 'password',
-      success: true,
-    });
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (user.status === 'suspended') {
+      return res.status(403).json({ error: 'Account is suspended. Contact an administrator.' });
+    }
+
+    const result = await verifyOtp({ userId: user._id, purpose: 'login_verification', code: otp });
+    if (!result.valid) {
+      const status = result.code === 'LOCKED' ? 429 : 400;
+      return res.status(status).json({
+        error: result.error,
+        code: result.code,
+        ...(typeof result.remaining === 'number' ? { attemptsRemaining: result.remaining } : {}),
+      });
+    }
+
+    const ua = req.headers['user-agent'] || '';
+    const ip = getClientIp(req);
+    const acceptLang = req.headers['accept-language'] || '';
+    const parsedUA = parseUserAgent(ua);
+    const fingerprint = generateDeviceFingerprint(ua, ip, acceptLang);
+    const location = await getIpLocation(ip);
+
+    const { token } = await issueSession(user, parsedUA, fingerprint, ip, location, 'otp');
+
+    // Notify the user that a login happened from a new device.
+    try {
+      await sendNewDeviceLoginAlert(user, {
+        browser: parsedUA.browser,
+        os: parsedUA.os,
+        deviceType: parsedUA.deviceType,
+        ip,
+        location: location.raw,
+      });
+    } catch (e) {
+      console.error('[auth] Failed to send new-device alert:', e.message);
+    }
 
     const userObj = user.toJSON();
-    return res.json({ user: userObj, token, sessionCreated: true });
+    return res.json({ user: userObj, token, sessionCreated: true, verified: true });
   } catch (error) {
     next(error);
   }
@@ -271,4 +427,4 @@ async function forgotPassword(req, res, next) {
   }
 }
 
-module.exports = { register, login, getMe, forgotPassword };
+module.exports = { register, login, verifyLogin, getMe, forgotPassword };

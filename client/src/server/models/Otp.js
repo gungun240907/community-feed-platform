@@ -24,6 +24,10 @@ const otpSchema = new mongoose.Schema(
     providerVerificationId: { type: String, default: null },
     providerChannel: { type: String, default: null }, // 'sms' | 'whatsapp'
     type: { type: String, enum: ['email', 'phone'], required: true },
+    // For `language_switch` OTPs, the exact language the OTP was issued for.
+    // Verification must match this so a French (email) OTP cannot be used to
+    // switch to a phone-verified language and vice-versa.
+    language: { type: String, default: null },
     purpose: {
       type: String,
       enum: [

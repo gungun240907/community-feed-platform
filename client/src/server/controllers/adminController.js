@@ -76,6 +76,10 @@ async function deletePostAsAdmin(req, res, next) {
       return res.status(404).json({ error: 'Post not found' });
     }
 
+    if (post.isDeleted) {
+      return res.status(409).json({ message: 'Post already removed by an administrator' });
+    }
+
     post.isDeleted = true;
     post.deletedAt = new Date();
     await post.save();

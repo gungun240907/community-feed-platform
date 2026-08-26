@@ -66,6 +66,7 @@ export const postAPI = {
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
+  verifyLogin: (data) => api.post('/auth/verify-login', data),
   getMe: () => api.get('/auth/me'),
   forgotPassword: (data) => api.post('/auth/forgot-password', data),
 };
